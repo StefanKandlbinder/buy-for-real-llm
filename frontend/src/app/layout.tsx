@@ -8,6 +8,7 @@ import { TRPCReactProvider } from "@/trpc/client/trpc-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { headers } from "next/headers";
 import { dark, shadesOfPurple } from "@clerk/themes";
+import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -57,6 +58,7 @@ export default async function RootLayout({
 
                 <SidebarTrigger />
                 {children}
+                <Toaster />
               </SidebarProvider>
             </ThemeProvider>
           </body>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { UploadIcon, TrashIcon } from "lucide-react";
 import Image from "next/image";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function GroupNode({
   group,

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client/client";
 import { GroupWithImages } from "@/types/image";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
+import { toast } from "sonner";
 
 export function useGroups() {
   const trpc = useTRPC();
@@ -35,10 +36,16 @@ export function useGroups() {
         });
         return { previousGroups };
       },
+      onSuccess: (data, variables) => {
+        toast.success(
+          `Group "${variables.name}" has been created successfully.`
+        );
+      },
       onError: (err, newGroup, context) => {
         if (context?.previousGroups) {
           queryClient.setQueryData(groupsQueryKey, context.previousGroups);
         }
+        toast.error("Failed to create group. Please try again.");
       },
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: groupsQueryKey });
@@ -51,16 +58,27 @@ export function useGroups() {
       onMutate: async (deletedGroup) => {
         await queryClient.cancelQueries({ queryKey: groupsQueryKey });
         const previousGroups = queryClient.getQueryData(groupsQueryKey);
+        const groupToDelete = previousGroups?.find(
+          (g) => g.id === deletedGroup.id
+        );
         queryClient.setQueryData(
           groupsQueryKey,
           (oldData) => oldData?.filter((g) => g.id !== deletedGroup.id) ?? []
         );
-        return { previousGroups };
+        return { previousGroups, groupName: groupToDelete?.name };
+      },
+      onSuccess: (data, variables, context) => {
+        toast.success(
+          `Group "${
+            context?.groupName || "Unknown"
+          }" has been deleted successfully.`
+        );
       },
       onError: (err, deletedGroup, context) => {
         if (context?.previousGroups) {
           queryClient.setQueryData(groupsQueryKey, context.previousGroups);
         }
+        toast.error("Failed to delete group. Please try again.");
       },
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: groupsQueryKey });
