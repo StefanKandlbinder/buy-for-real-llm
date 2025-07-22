@@ -6,18 +6,13 @@ import { AddGroupDialog } from "./AddGroupDialog";
 import { GroupWithImages } from "@/types/image";
 import { useQueryClient } from "@tanstack/react-query";
 
-export function ImageGallery({
-  initialData,
-}: {
-  initialData: GroupWithImages[];
-}) {
+export function ImageGallery() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
 
   const { data: groups } = useQuery(
     trpc.groups.getNestedGroups.queryOptions(undefined, {
-      initialData,
       refetchOnWindowFocus: false,
     })
   );
