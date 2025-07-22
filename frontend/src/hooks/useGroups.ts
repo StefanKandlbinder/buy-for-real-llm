@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client/client";
 import { GroupWithImages } from "@/types/image";
+import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
 export function useGroups() {
   const trpc = useTRPC();
@@ -17,20 +18,21 @@ export function useGroups() {
     trpc.groups.createGroup.mutationOptions({
       onMutate: async (newGroup) => {
         await queryClient.cancelQueries({ queryKey: groupsQueryKey });
-        const previousGroups =
-          queryClient.getQueryData<GroupWithImages[]>(groupsQueryKey);
-        queryClient.setQueryData<GroupWithImages[]>(
-          groupsQueryKey,
-          (oldData) => {
-            const optimisticNewGroup: GroupWithImages = {
-              name: newGroup.name,
-              id: Date.now(),
-              parent_id: newGroup.parentId ?? null,
-              media: [],
-            };
-            return [...(oldData ?? []), optimisticNewGroup];
-          }
-        );
+        const previousGroups = queryClient.getQueryData(groupsQueryKey);
+        queryClient.setQueryData(groupsQueryKey, (oldData) => {
+          const optimisticNewGroup: NestedGroup = {
+            name: newGroup.name,
+            id: Date.now(),
+            parent_id: newGroup.parentId ?? null,
+            media: [],
+            level:
+              oldData?.find((g) => g.id === newGroup.parentId)?.level ?? 0 + 1,
+            path: `${
+              oldData?.find((g) => g.id === newGroup.parentId)?.path ?? ""
+            }->${Date.now()}`,
+          };
+          return [...(oldData ?? []), optimisticNewGroup];
+        });
         return { previousGroups };
       },
       onError: (err, newGroup, context) => {
@@ -48,9 +50,8 @@ export function useGroups() {
     trpc.groups.deleteGroup.mutationOptions({
       onMutate: async (deletedGroup) => {
         await queryClient.cancelQueries({ queryKey: groupsQueryKey });
-        const previousGroups =
-          queryClient.getQueryData<GroupWithImages[]>(groupsQueryKey);
-        queryClient.setQueryData<GroupWithImages[]>(
+        const previousGroups = queryClient.getQueryData(groupsQueryKey);
+        queryClient.setQueryData(
           groupsQueryKey,
           (oldData) => oldData?.filter((g) => g.id !== deletedGroup.id) ?? []
         );
