@@ -23,8 +23,8 @@ Buy For Real is a full-stack application that leverages object detection to iden
 
 ### Backend
 
-- **Framework:** [FastAPI](https://fastapi.tiangolo.com/) (assumed)
-- **Object Detection:** [Qwen model](https://huggingface.co/Qwen) (assumed from file names)
+- **Framework:** [FastAPI](https://fastapi.tiangolo.com/)
+- **Object Detection:** [Qwen-VL-Max](https://huggingface.co/Qwen/Qwen-VL-Max)
 - **Dependency Management:** [Poetry](https://python-poetry.org/)
 
 ## Getting Started
@@ -40,16 +40,19 @@ To get a local copy up and running, follow these simple steps.
 ### Installation
 
 1.  **Clone the repo**
+
     ```sh
     git clone https://github.com/your_username/buy-for-real-qwen.git
     cd buy-for-real-qwen
     ```
 
 2.  **Set up the Frontend**
+
     ```sh
     cd frontend
     npm install
     ```
+
     - Create a `.env.local` file in the `frontend` directory and add your environment variables (e.g., for Clerk, database connection).
 
 3.  **Set up the Backend**
@@ -62,10 +65,12 @@ To get a local copy up and running, follow these simple steps.
 ### Running the Application
 
 1.  **Run the Frontend**
+
     ```sh
     cd frontend
     npm run dev
     ```
+
     The frontend will be available at `http://localhost:3000`.
 
 2.  **Run the Backend**
@@ -79,8 +84,8 @@ To get a local copy up and running, follow these simple steps.
 
 The project is organized into two main parts:
 
--   `frontend/`: Contains the Next.js application, including all UI components, pages, and tRPC client code.
--   `backend/`: Contains the Python-based backend, including the FastAPI application and the object detection model.
+- `frontend/`: Contains the Next.js application, including all UI components, pages, and tRPC client code.
+- `backend/`: Contains the Python-based backend, including the FastAPI application and the object detection model.
 
 ```
 buy-for-real-qwen/
