@@ -1,8 +1,17 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../../trpc";
+import { protectedProcedure, router } from "@/trpc/server/trpc";
 import { groups, media } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { insertGroupSchema, updateGroupSchema } from "./validation";
+
+export type NestedGroup = {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  level: number;
+  path: string;
+  media: Array<{ id: number; label: string; url: string }>;
+};
 
 export const groupsRouter = router({
   getNestedGroups: protectedProcedure.query(async ({ ctx }) => {
@@ -40,8 +49,8 @@ export const groupsRouter = router({
       ORDER BY gh.path;
     `;
 
-    const result = await ctx.db.execute(query);
-    return result.rows;
+    const result = await ctx.db.execute<NestedGroup>(query);
+    return result.rows as NestedGroup[];
   }),
 
   createGroup: protectedProcedure

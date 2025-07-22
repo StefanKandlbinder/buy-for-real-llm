@@ -6,7 +6,6 @@ import { media } from "./media";
 export const groups = pgTable("groups", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  // eslint-disable-line @typescript-eslint/no-explicit-any
   parentId: integer("parent_id").references((): any => groups.id, {
     onDelete: "cascade",
   }),

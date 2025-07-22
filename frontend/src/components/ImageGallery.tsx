@@ -3,14 +3,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client/client";
 import { GroupNode } from "./GroupNode";
 import { AddGroupDialog } from "./AddGroupDialog";
-import { GroupWithImages } from "@/types/image";
 import { useQueryClient } from "@tanstack/react-query";
+import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
-export function ImageGallery({
-  initialData,
-}: {
-  initialData: GroupWithImages[];
-}) {
+export function ImageGallery({ initialData }: { initialData: NestedGroup[] }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
@@ -30,22 +26,21 @@ export function ImageGallery({
 
         // Snapshot the previous value
         const previousGroups =
-          queryClient.getQueryData<GroupWithImages[]>(groupsQueryKey);
+          queryClient.getQueryData<NestedGroup[]>(groupsQueryKey);
 
         // Optimistically update to the new value
-        queryClient.setQueryData<GroupWithImages[]>(
-          groupsQueryKey,
-          (oldData) => {
-            const optimisticNewGroup: GroupWithImages = {
-              // Note: Ensure this optimistic object matches your `GroupWithImages` type
-              name: newGroup.name,
-              id: Date.now(), // Use a temporary ID
-              parent_id: newGroup.parentId ?? null,
-              media: [],
-            };
-            return [...(oldData ?? []), optimisticNewGroup];
-          }
-        );
+        queryClient.setQueryData<NestedGroup[]>(groupsQueryKey, (oldData) => {
+          const optimisticNewGroup: NestedGroup = {
+            // Note: Ensure this optimistic object matches your `GroupWithImages` type
+            name: newGroup.name,
+            id: Date.now(), // Use a temporary ID
+            parent_id: newGroup.parentId ?? null,
+            media: [],
+            level: 0,
+            path: "",
+          };
+          return [...(oldData ?? []), optimisticNewGroup];
+        });
 
         // Return a context object with the snapshotted value
         return { previousGroups };
@@ -68,13 +63,10 @@ export function ImageGallery({
       onMutate: async (deletedGroup) => {
         await queryClient.cancelQueries({ queryKey: groupsQueryKey });
         const previousGroups =
-          queryClient.getQueryData<GroupWithImages[]>(groupsQueryKey);
-        queryClient.setQueryData<GroupWithImages[]>(
-          groupsQueryKey,
-          (oldData) => {
-            return oldData?.filter((g) => g.id !== deletedGroup.id) ?? [];
-          }
-        );
+          queryClient.getQueryData<NestedGroup[]>(groupsQueryKey);
+        queryClient.setQueryData<NestedGroup[]>(groupsQueryKey, (oldData) => {
+          return oldData?.filter((g) => g.id !== deletedGroup.id) ?? [];
+        });
         return { previousGroups };
       },
       onError: (err, deletedGroup, context) => {
@@ -89,13 +81,13 @@ export function ImageGallery({
   );
 
   const rootGroups =
-    groups?.filter((g) => g.parent_id === null) ?? ([] as GroupWithImages[]);
+    groups?.filter((g) => g.parent_id === null) ?? ([] as NestedGroup[]);
 
   return (
     <div>
       <div className="flex justify-end mb-4">
         <AddGroupDialog
-          groups={groups ?? ([] as GroupWithImages[])}
+          groups={groups ?? ([] as NestedGroup[])}
           createGroupMutation={(values) => createGroupMutation.mutate(values)}
         />
       </div>

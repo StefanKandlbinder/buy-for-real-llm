@@ -31,10 +31,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { insertGroupSchema } from "@/trpc/server/routers/groups/validation";
-import { GroupWithImages } from "@/types/image";
+import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
 type AddGroupDialogProps = {
-  groups: any;
+  groups: NestedGroup[];
   createGroupMutation: (values: z.infer<typeof insertGroupSchema>) => void;
 };
 
@@ -110,7 +110,7 @@ export function AddGroupDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="null">None</SelectItem>
-                      {groups.map((group: any) => (
+                      {groups.map((group: NestedGroup) => (
                         <SelectItem key={group.id} value={String(group.id)}>
                           {group.name}
                         </SelectItem>

@@ -1,15 +1,20 @@
 import { ImageGallery } from "@/components/ImageGallery";
 import { api } from "@/trpc/server/server";
-import { GroupWithImages } from "@/types/image";
+import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { redirect } from "next/navigation";
 
 export default async function HomePage() {
-  let initialData: GroupWithImages[] = [];
+  let initialData: NestedGroup[] = [];
   try {
-    initialData = (await api.groups.getNestedGroups()) as GroupWithImages[];
-  } catch (err: any) {
-    // If the error is an UNAUTHORIZED error, redirect to sign-in
-    if (err?.code === "UNAUTHORIZED") {
+    initialData = await api.groups.getNestedGroups();
+  } catch (err: unknown) {
+    // Type guard to check if it's a TRPC error with a code property
+    if (
+      err &&
+      typeof err === "object" &&
+      "code" in err &&
+      err.code === "UNAUTHORIZED"
+    ) {
       redirect("/sign-in");
     }
     throw err;

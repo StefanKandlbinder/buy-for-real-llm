@@ -1,21 +1,21 @@
 "use client";
 
-import { type GroupWithImages } from "@/types/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UploadIcon, TrashIcon } from "lucide-react";
 import Image from "next/image";
+import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
 export function GroupNode({
   group,
   allGroups,
   deleteGroupMutation,
 }: {
-  group: any;
-  allGroups: any;
-  deleteGroupMutation: (values: any) => void;
+  group: NestedGroup;
+  allGroups: NestedGroup[];
+  deleteGroupMutation: (value: { id: number }) => void;
 }) {
-  const childGroups = allGroups.filter((g: any) => g.parent_id === group.id);
+  const childGroups = allGroups.filter((g) => g.parent_id === group.id);
 
   return (
     <Card className="mt-4">
@@ -42,7 +42,7 @@ export function GroupNode({
       <CardContent>
         {/* Render images in this group */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {group.media?.map((image: any) => (
+          {group.media?.map((image) => (
             <div key={image.id} className="relative aspect-square">
               <Image
                 src={image.url}
@@ -60,7 +60,7 @@ export function GroupNode({
 
         {/* Recursively render child groups */}
 
-        {childGroups.map((child: any) => (
+        {childGroups.map((child) => (
           <GroupNode
             key={child.id}
             group={child}
