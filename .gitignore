@@ -38,3 +38,6 @@ frontend/pnpm-lock.yaml
 # Next.js
 frontend/next-env.d.ts
 frontend/.next
+
+# Clerk
+frontend/.clerk
