@@ -34,7 +34,7 @@ import { insertGroupSchema } from "@/trpc/server/routers/groups/validation";
 import { GroupWithImages } from "@/types/image";
 
 type AddGroupDialogProps = {
-  groups: GroupWithImages[];
+  groups: any;
   createGroupMutation: (values: z.infer<typeof insertGroupSchema>) => void;
 };
 
@@ -110,7 +110,7 @@ export function AddGroupDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="null">None</SelectItem>
-                      {groups.map((group) => (
+                      {groups.map((group: any) => (
                         <SelectItem key={group.id} value={String(group.id)}>
                           {group.name}
                         </SelectItem>

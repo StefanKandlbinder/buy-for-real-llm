@@ -11,11 +11,11 @@ export function GroupNode({
   allGroups,
   deleteGroupMutation,
 }: {
-  group: GroupWithImages;
-  allGroups: GroupWithImages[];
-  deleteGroupMutation: (values: { id: number }) => void;
+  group: any;
+  allGroups: any;
+  deleteGroupMutation: (values: any) => void;
 }) {
-  const childGroups = allGroups.filter((g) => g.parent_id === group.id);
+  const childGroups = allGroups.filter((g: any) => g.parent_id === group.id);
 
   return (
     <Card className="mt-4">
@@ -42,7 +42,7 @@ export function GroupNode({
       <CardContent>
         {/* Render images in this group */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {group.media?.map((image) => (
+          {group.media?.map((image: any) => (
             <div key={image.id} className="relative aspect-square">
               <Image
                 src={image.url}
@@ -60,7 +60,7 @@ export function GroupNode({
 
         {/* Recursively render child groups */}
 
-        {childGroups.map((child) => (
+        {childGroups.map((child: any) => (
           <GroupNode
             key={child.id}
             group={child}
