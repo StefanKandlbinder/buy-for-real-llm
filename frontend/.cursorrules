@@ -1,0 +1,14 @@
+{
+  "rules": [
+    {
+      "pattern": "**/route.ts",
+      "allowed": false,
+      "message": "The use of 'route.ts' is not allowed in this project. Please use tRPC for API routes."
+    },
+    {
+      "pattern": "**/app/api/**",
+      "allowed": false,
+      "message": "The use of the '/app/api' directory is not allowed in this project. Please use tRPC for API routes."
+    }
+  ]
+}

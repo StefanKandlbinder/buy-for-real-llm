@@ -10,7 +10,7 @@ export type NestedGroup = {
   parent_id: number | null;
   level: number;
   path: string;
-  media: Array<{ id: number; label: string; url: string }>;
+  media: Array<{ id: string; label: string; url: string }>;
 };
 
 export const groupsRouter = router({
@@ -22,7 +22,7 @@ export const groupsRouter = router({
         -- Anchor member: select root groups (those with no parent)
         SELECT 
           g.id, g.name, g.parent_id, g.created_at, g.updated_at, 0 as level,
-          CAST(g.id AS TEXT) as path
+          CAST(g.id AS VARCHAR) as path
         FROM ${groups} g
         WHERE g.parent_id IS NULL
 
@@ -31,7 +31,7 @@ export const groupsRouter = router({
         -- Recursive member: select child groups
         SELECT 
           g.id, g.name, g.parent_id, g.created_at, g.updated_at, gh.level + 1,
-          gh.path || '->' || CAST(g.id AS TEXT)
+          gh.path || '->' || CAST(g.id AS VARCHAR)
         FROM ${groups} g
         JOIN group_hierarchy gh ON g.parent_id = gh.id
       )

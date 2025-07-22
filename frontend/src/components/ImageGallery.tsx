@@ -31,13 +31,15 @@ export function ImageGallery({ initialData }: { initialData: NestedGroup[] }) {
         // Optimistically update to the new value
         queryClient.setQueryData<NestedGroup[]>(groupsQueryKey, (oldData) => {
           const optimisticNewGroup: NestedGroup = {
-            // Note: Ensure this optimistic object matches your `GroupWithImages` type
             name: newGroup.name,
             id: Date.now(), // Use a temporary ID
             parent_id: newGroup.parentId ?? null,
             media: [],
-            level: 0,
-            path: "",
+            level:
+              oldData?.find((g) => g.id === newGroup.parentId)?.level ?? 0 + 1,
+            path: `${
+              oldData?.find((g) => g.id === newGroup.parentId)?.path ?? ""
+            }->${Date.now()}`,
           };
           return [...(oldData ?? []), optimisticNewGroup];
         });
