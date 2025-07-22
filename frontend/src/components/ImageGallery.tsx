@@ -6,14 +6,13 @@ import { AddGroupDialog } from "./AddGroupDialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
-export function ImageGallery({ initialData }: { initialData: NestedGroup[] }) {
+export function ImageGallery() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
 
   const { data: groups } = useQuery(
     trpc.groups.getNestedGroups.queryOptions(undefined, {
-      initialData,
       refetchOnWindowFocus: false,
     })
   );
