@@ -1,12 +1,19 @@
 import { relations } from "drizzle-orm";
-import { text, timestamp, serial, integer, pgTable } from "drizzle-orm/pg-core";
+import {
+  text,
+  timestamp,
+  serial,
+  integer,
+  pgTable,
+  type AnyPgColumn,
+} from "drizzle-orm/pg-core";
 import { media } from "./media";
 
 // Groups Table: Represents a folder that can contain images and other groups.
 export const groups = pgTable("groups", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  parentId: integer("parent_id").references((): any => groups.id, {
+  parentId: integer("parent_id").references((): AnyPgColumn => groups.id, {
     onDelete: "cascade",
   }),
   createdAt: timestamp("created_at", { withTimezone: true })

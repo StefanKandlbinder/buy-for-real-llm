@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client/client";
-import { GroupWithImages } from "@/types/image";
+
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { toast } from "sonner";
 
