@@ -51,6 +51,7 @@ I analyzed the project and found several areas for improvement, ranging from a c
 - **Bug: Broken `products` Page:** The `products/page.tsx` was not functional. It was fetching the wrong data and the main component, `ImageGallery`, was commented out. This has been fixed.
 
 - **Inconsistency: Database Schema and Type Mismatches:**
+
   - In `src/db/schema/media.ts`, the `groupId` column was incorrectly named `"user_id"`. This has been corrected to `"group_id"`.
   - The `GroupWithImages` type defined `id` and `parent_id` as strings, but they are numbers in the database. This has been corrected.
   - There was a mismatch in the defined relationship between the `users` and `media` tables. The `usersRelations` has been removed from `src/db/schema/user.ts` to resolve this.
