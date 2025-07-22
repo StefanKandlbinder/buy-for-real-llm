@@ -1,0 +1,55 @@
+[project]
+name = "buy-for-real-qwen"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Stefan Kandlbinder", email = "stefan.kandlbinder@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10, <3.13"
+dependencies = [
+    "pytest (>=8.4)",
+    "mlx-vlm (>=0.3.1)",
+    "Pillow (>=11.3.0)",
+    "torch (>=2.7.1)",
+    "torchvision (>=0.22.1)",
+    "pydantic (>=2.11.7)",
+    "pylint (>=3.3.7)",
+    "fastapi (>=0.115.0)",
+    "uvicorn[standard] (>=0.32.0)",
+    "python-multipart (>=0.0.20)",
+]
+
+[tool.poetry]
+packages = [
+    { include = "object_detection" },
+    { include = "api" },
+]
+
+[tool.pyright]
+include = ["object_detection", "backend/.venv"]
+exclude = ["**/node_modules",
+    "**/__pycache__",
+    "src/experimental",
+    "src/typestubs"
+]
+ignore = ["src/oldstuff"]
+defineConstant = { DEBUG = true }
+stubPath = "src/stubs"
+
+reportMissingImports = "error"
+reportMissingTypeStubs = false
+
+pythonVersion = "3.12"
+pythonPlatform = "MacOS"
+
+executionEnvironments = [
+  { root = "src/web", pythonVersion = "3.5", pythonPlatform = "Windows", extraPaths = [ "src/service_libs" ], reportMissingImports = "warning" },
+  { root = "src/sdk", pythonVersion = "3.0", extraPaths = [ "src/backend" ] },
+  { root = "src/tests", extraPaths = ["src/tests/e2e", "src/sdk" ]},
+  { root = "src" }
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
