@@ -38,6 +38,6 @@ export const mediaRelations = relations(media, ({ one }) => ({
   }),
 }));
 
-export const mediaelectSchema = createSelectSchema(media);
-export const imageInsertSchema = createInsertSchema(media);
-export const imageUpdateSchema = createUpdateSchema(media);
+export const mediaSelectSchema = createSelectSchema(media);
+export const mediaInsertSchema = createInsertSchema(media);
+export const mediaUpdateSchema = createUpdateSchema(media);

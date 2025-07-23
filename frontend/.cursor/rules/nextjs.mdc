@@ -1,0 +1,52 @@
+# Next.js Project Rules
+
+This document outlines the key architectural rules, conventions, and best practices for the Next.js frontend of the "Buy For Real" application. Adhering to these rules is crucial for maintaining a clean, consistent, and scalable codebase.
+
+## 1. API Layer: tRPC and Server Actions Only
+
+To ensure end-to-end type safety and a single, consistent API pattern, this project strictly uses tRPC for all database and server-side logic communication.
+
+- **DO NOT** use standard Next.js API Routes (`/app/api/**/route.ts`). The `.cursorrules` file enforces this.
+- **All** database interactions must be exposed through tRPC procedures.
+
+### Handling File Uploads
+
+For operations that inherently require `multipart/form-data`, such as file uploads, the designated pattern is to use **Next.js Server Actions**.
+
+1.  Create a Server Action in the `/src/actions` directory.
+2.  The action should accept `FormData`.
+3.  Inside the action, perform the necessary operations with the form data (e.g., upload the file to a service like Pinata).
+4.  For any subsequent database operations (e.g., saving the file URL and metadata), the action **must** use the server-side tRPC caller (`/src/trpc/server/server.ts`). This maintains the single-source-of-truth for database logic within the tRPC API.
+5.  Use `revalidatePath` or `revalidateTag` within the action to update the client-side cache as needed.
+
+## 2. Database and Schema
+
+The project uses Drizzle ORM. Consistency between the Drizzle schema and the database migrations is paramount.
+
+- **Schema as Source of Truth:** The Drizzle schema files in `/src/db/schema/` are the source of truth for the database structure.
+- **Migration Generation:** Always generate migrations from schema changes using the provided script:
+  ```bash
+  pnpm db:generate
+  ```
+- **Applying Migrations:** Apply migrations using the script:
+  ```bash
+  pnpm db:migrate
+  ```
+- **Data Consistency:** Ensure that column types in the schema (e.g., `varchar`, `serial`, `timestamp`) perfectly match the intended types in the SQL migration files. Any discrepancies will lead to runtime errors. For example, the `media.id` is a `varchar(128)` to store CIDs, not a `serial`.
+
+## 3. State Management
+
+- **Server State:** Use React Query (via the tRPC client) for caching, refetching, and managing all server state.
+- **Client State:** For simple, local component state, use `useState` or `useReducer`. Avoid complex client-side state management libraries unless absolutely necessary.
+
+## 4. Component Architecture
+
+- **Server Components by Default:** Embrace the Next.js App Router paradigm. Use Server Components whenever possible to fetch data and render content on the server.
+- **Client Components for Interactivity:** Use the `"use client";` directive only for components that require interactivity (e.g., event handlers, hooks like `useState`, `useEffect`).
+- **Keep Client Components Small:** Isolate client-side interactivity into the smallest possible components (leaf components) to maximize the benefits of Server Components.
+
+## 5. Code Organization
+
+- **Server Actions:** Place all Server Actions in `/src/actions`.
+- **tRPC Routers:** Organize tRPC routers by domain under `/src/trpc/server/routers`. Each router should have its own validation schema file.
+- **Custom Hooks:** Place custom hooks in the `/src/hooks` directory, organized by domain (e.g., `/hooks/group`, `/hooks/file`).

@@ -1,15 +1,11 @@
 import { z } from "zod";
-import { protectedProcedure, router, publicProcedure } from "../../trpc";
+import { protectedProcedure, router } from "../../trpc";
 import { media } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 import { insertMediaSchema, updateMediaSchema } from "./validation";
 
 export const mediaRouter = router({
-  getAllMedia: publicProcedure.query(async ({ ctx }) => {
-    return ctx.db.select().from(media);
-  }),
-
   // Procedure to create an image record in the database after upload
   createImage: protectedProcedure
     .input(insertMediaSchema)
@@ -37,7 +33,7 @@ export const mediaRouter = router({
 
   // Procedure to delete an image record
   deleteImage: protectedProcedure
-    .input(z.object({ id: z.int() }))
+    .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.delete(media).where(eq(media.id, input.id));
       return { success: true };

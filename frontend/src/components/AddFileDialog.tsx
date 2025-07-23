@@ -57,7 +57,7 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
     if (!values.file) return;
     try {
       reset();
-      const url = await uploadFile(
+      await uploadFile(
         values.file,
         group,
         values.label,
@@ -65,7 +65,7 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
       );
       setIsOpen(false);
       form.reset();
-    } catch (e) {
+    } catch {
       // error handled in hook
     }
   };

@@ -1,12 +1,11 @@
 "use client";
-import { useState, useRef } from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2 } from "lucide-react";
 import { useUploadFile } from "@/hooks/file/useUploadFile";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
 export default function UploadFileButton({ group }: { group: NestedGroup }) {
-  const [file, setFile] = useState<File>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { uploadFile, uploading, reset } = useUploadFile();
@@ -15,7 +14,6 @@ export default function UploadFileButton({ group }: { group: NestedGroup }) {
     const selectedFile = e.target?.files?.[0];
     if (!selectedFile) return;
 
-    setFile(selectedFile);
     reset(); // Clear any previous errors
 
     // Auto-upload when file is selected

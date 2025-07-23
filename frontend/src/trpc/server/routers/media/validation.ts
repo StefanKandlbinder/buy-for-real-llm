@@ -4,19 +4,18 @@ import { z } from "zod";
 
 // Schema for inserting a new image
 export const insertMediaSchema = createInsertSchema(media, {
-  label: z.string().optional(),
-  description: z.string().optional(),
-  url: z.string(),
+  label: z.string(),
+  description: z.string(),
+  url: z.url(),
 }).omit({
-  id: true,
   createdAt: true,
   updatedAt: true,
 });
 
 // Schema for updating an existing image
 export const updateMediaSchema = z.object({
-  id: z.int(),
+  id: z.number(),
   label: z.string().min(1).optional(),
   description: z.string().min(1).optional(),
-  url: z.url().optional(),
+  url: z.string().url().optional(),
 });
