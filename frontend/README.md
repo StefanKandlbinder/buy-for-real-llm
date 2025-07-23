@@ -72,3 +72,30 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `pnpm db:generate`: Generates a new database migration based on schema changes.
 - `pnpm db:migrate`: Applies pending database migrations.
 - `pnpm db:studio`: Opens the Drizzle Studio to browse your database.
+
+## Deployment on Vercel
+
+This project is configured for continuous deployment on [Vercel](https://vercel.com/).
+
+### CI/CD Pipeline
+
+A GitHub Actions workflow is set up in `.github/workflows/vercel.yml` to automate the deployment process. The pipeline triggers on any push or pull request to the `main` branch and performs the following steps:
+
+1.  **Checkout & Setup:** Checks out the code and sets up the Node.js environment.
+2.  **Install Dependencies:** Installs project dependencies using `pnpm`.
+3.  **Lint:** Runs the linter to ensure code quality.
+4.  **Deploy:** Builds and deploys the project to Vercel. A preview deployment is created for pull requests, and a production deployment is made for pushes to `main`.
+
+### Environment Variables
+
+For the deployment to succeed, you must configure the following secrets in your GitHub repository settings (`Settings > Secrets and variables > Actions`):
+
+- `VERCEL_ORG_ID`: Your Vercel organization ID.
+- `VERCEL_PROJECT_ID`: The ID of the corresponding project on Vercel.
+- `VERCEL_TOKEN`: A Vercel access token with deployment permissions.
+- `DATABASE_URL`: The connection string for your production database.
+- `PINATA_API_KEY`: Your Pinata API key.
+- `PINATA_API_SECRET`: Your Pinata API secret.
+- `PINATA_JWT`: Your Pinata JWT.
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: Your Clerk publishable key.
+- `CLERK_SECRET_KEY`: Your Clerk secret key.
