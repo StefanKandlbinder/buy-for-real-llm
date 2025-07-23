@@ -40,6 +40,7 @@ For operations that require `FormData`, such as file uploads, **Next.js Server A
 ### Installation & Setup
 
 1.  **Install dependencies:**
+
     ```bash
     pnpm install
     ```
