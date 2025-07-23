@@ -5,12 +5,12 @@ on:
     branches:
       - main
     paths:
-      - 'frontend/**'
+      - "frontend/**"
   pull_request:
     branches:
       - main
     paths:
-      - 'frontend/**'
+      - "frontend/**"
 
 jobs:
   deploy:
@@ -26,15 +26,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install pnpm
         run: npm install -g pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --legacy-peer-deps
 
       - name: Run linter
         run: pnpm lint
