@@ -21,6 +21,8 @@ backend/object_detection/utils/__pycache__
 frontend/.env
 frontend/.env.local
 frontend/.env.development.local
+frontend/assets
+
 # Environment variables
 backend/.env
 frontend/.env

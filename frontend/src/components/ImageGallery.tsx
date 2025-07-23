@@ -2,7 +2,7 @@
 
 import { GroupNode } from "./GroupNode";
 import { AddGroupDialog } from "./AddGroupDialog";
-import { useGroups } from "@/hooks/useGroups";
+import { useGroups } from "@/hooks/group/useGroups";
 import { Skeleton } from "./ui/skeleton";
 
 export function ImageGallery() {

@@ -19,7 +19,7 @@ export default function Pinata() {
       setUploading(true);
       const data = new FormData();
       data.set("file", file);
-      const uploadRequest = await fetch("/api/files", {
+      const uploadRequest = await fetch("/api/pinata/files", {
         method: "POST",
         body: data,
       });
@@ -44,7 +44,9 @@ export default function Pinata() {
         {uploading ? "Uploading..." : "Upload"}
       </Button>
       {/* Add a conditional looking for the signed url and use it as the source */}
-      {url && <Image src={url} alt="Image from Pinata" width={200} height={200} />}
+      {url && (
+        <Image src={url} alt="Image from Pinata" width={200} height={200} />
+      )}
     </main>
   );
 }

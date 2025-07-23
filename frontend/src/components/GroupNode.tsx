@@ -2,10 +2,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadIcon, TrashIcon } from "lucide-react";
+import { TrashIcon } from "lucide-react";
 import Image from "next/image";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
-
+import UploadFileButton from "./UploadFileButton";
 
 export function GroupNode({
   group,
@@ -23,10 +23,7 @@ export function GroupNode({
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{group.name}</CardTitle>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <UploadIcon className="mr-2 h-4 w-4" />
-            Upload Image
-          </Button>
+          <UploadFileButton group={group} />
           <Button
             variant="destructive"
             size="sm"
@@ -37,6 +34,7 @@ export function GroupNode({
             }}
           >
             <TrashIcon className="h-4 w-4" />
+            Delete Group
           </Button>
         </div>
       </CardHeader>
@@ -47,7 +45,7 @@ export function GroupNode({
             <div key={image.id} className="relative aspect-square">
               <Image
                 src={image.url}
-                alt={image.label}
+                alt={image.label ?? "Image"}
                 className="rounded-md object-cover w-full h-full"
                 width={200}
                 height={200}

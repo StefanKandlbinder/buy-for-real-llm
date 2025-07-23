@@ -31,7 +31,7 @@ export const insertMediaSchema = createInsertSchema(media, {
   label: z.string().min(1),
   description: z.string().min(1),
   url: z.url(),
-  id: z.string().length(128),
+  id: z.int(),
 }).omit({
   createdAt: true,
   updatedAt: true,

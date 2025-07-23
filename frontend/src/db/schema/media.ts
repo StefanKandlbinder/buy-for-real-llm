@@ -4,6 +4,7 @@ import {
   varchar,
   text,
   timestamp,
+  serial,
 } from "drizzle-orm/pg-core";
 import { groups } from "./group";
 import { relations } from "drizzle-orm";
@@ -14,13 +15,13 @@ import {
 } from "drizzle-zod";
 
 export const media = pgTable("media", {
-  id: varchar({ length: 128 }).notNull().primaryKey(),
+  id: serial("id").primaryKey(),
   groupId: integer("group_id")
     .references(() => groups.id, { onDelete: "cascade" })
     .notNull(),
-  label: varchar({ length: 128 }).notNull(),
+  label: varchar({ length: 128 }),
   url: text("url").notNull(),
-  description: varchar({ length: 255 }).notNull(),
+  description: varchar({ length: 255 }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
