@@ -55,7 +55,6 @@ export default async function RootLayout({
             >
               <SidebarProvider>
                 <AppSidebar />
-
                 <SidebarTrigger />
                 {children}
                 <Toaster />

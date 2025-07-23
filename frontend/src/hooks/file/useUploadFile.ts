@@ -5,7 +5,12 @@ import { useTRPC } from "@/trpc/client/client";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 
 type TUseUploadFileReturn = {
-  uploadFile: (file: File, group: NestedGroup) => Promise<string>;
+  uploadFile: (
+    file: File,
+    group: NestedGroup,
+    label?: string,
+    description?: string
+  ) => Promise<string>;
   uploading: boolean;
   error: string | null;
   reset: () => void;
@@ -75,7 +80,9 @@ export function useUploadFile(
 
   const uploadFile = async (
     file: File,
-    group: NestedGroup
+    group: NestedGroup,
+    label?: string,
+    description?: string
   ): Promise<string> => {
     if (!file) {
       const errorMsg = "No file provided";
@@ -112,8 +119,8 @@ export function useUploadFile(
       );
 
       createMediaMutation.mutate({
-        label: undefined,
-        description: undefined,
+        label,
+        description,
         url: signedUrl,
         groupId: group.id,
       });

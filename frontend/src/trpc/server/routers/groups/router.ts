@@ -10,7 +10,7 @@ export type NestedGroup = {
   parent_id: number | null;
   level: number;
   path: string;
-  media: Array<{ id: string; label: string; url: string }>;
+  media: Array<{ id: string; label: string; url: string; description: string }>;
 };
 
 export const groupsRouter = router({
@@ -39,7 +39,7 @@ export const groupsRouter = router({
         gh.id, gh.name, gh.parent_id, gh.level, gh.path,
         COALESCE(
           json_agg(
-            json_build_object('id', i.id, 'label', i.label, 'url', i.url)
+            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description)
           ) FILTER (WHERE i.id IS NOT NULL),
           '[]'::json
         ) as media

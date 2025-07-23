@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { TrashIcon } from "lucide-react";
 import Image from "next/image";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
-import UploadFileButton from "./UploadFileButton";
+import { AddFileDialog } from "./AddFileDialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function GroupNode({
   group,
@@ -23,7 +28,7 @@ export function GroupNode({
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{group.name}</CardTitle>
         <div className="flex gap-2">
-          <UploadFileButton group={group} />
+          <AddFileDialog group={group} />
           <Button
             variant="destructive"
             size="sm"
@@ -50,8 +55,15 @@ export function GroupNode({
                 width={200}
                 height={200}
               />
-              <p className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 rounded-b-md truncate">
-                {image.label}
+              <p className="absolute bottom-0 left-0 right-0 bg-sidebar-accent bg-opacity-10 text-sidebar-accent-foreground text-xs px-4 py-3 rounded-b-md truncate min-h-10">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span title={image.description}>{image.label}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{image.description}</p>
+                  </TooltipContent>
+                </Tooltip>
               </p>
             </div>
           ))}
