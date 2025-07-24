@@ -151,7 +151,7 @@ function DefaultErrorFallback({
           Something went wrong
         </h3>
         <p className="text-sm text-muted-foreground max-w-sm">
-          This component encountered an error and couldn't render properly.
+          This component encountered an error and couldn&apos;t render properly.
         </p>
         {process.env.NODE_ENV === "development" && (
           <details className="text-xs text-muted-foreground/80 text-left max-w-md">

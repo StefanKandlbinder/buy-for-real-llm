@@ -33,7 +33,7 @@ export const mediaRouter = router({
 
   // Procedure to delete an image record
   deleteImage: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.delete(media).where(eq(media.id, input.id));
       return { success: true };

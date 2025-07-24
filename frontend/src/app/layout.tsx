@@ -11,7 +11,6 @@ import { dark, shadesOfPurple } from "@clerk/themes";
 import { Toaster } from "@/components/ui/sonner";
 import ErrorBoundary from "@/components/Error/ErrorBoundary";
 import { ErrorProvider } from "@/components/Error/ErrorProvider";
-import { ErrorBoundaryDemo } from "@/components/Error/ErrorBoundaryDemo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

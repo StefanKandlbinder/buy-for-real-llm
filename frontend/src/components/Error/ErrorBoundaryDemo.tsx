@@ -13,7 +13,7 @@ import ErrorBoundary, {
   useErrorHandler,
 } from "@/components/Error/ErrorBoundary";
 import { useErrorReporting } from "@/components/Error/ErrorProvider";
-import { AlertTriangle, Bug, Wifi, WifiOff } from "lucide-react";
+import { AlertTriangle, Bug, WifiOff } from "lucide-react";
 
 // Component that intentionally throws an error
 function ErrorThrowingComponent({ shouldError }: { shouldError: boolean }) {

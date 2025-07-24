@@ -15,10 +15,11 @@ export async function uploadMediaAction(formData: FormData) {
   }
 
   try {
-    const { cid } = await pinata.upload.public.file(file);
+    const { cid, id } = await pinata.upload.public.file(file);
     const url = await pinata.gateways.public.convert(cid);
 
     const newMedia = await api.media.createImage({
+      id: id,
       url,
       label,
       description,

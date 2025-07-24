@@ -83,6 +83,15 @@ export function useGroups() {
         return { previousGroups, groupName: groupToDelete?.name, loadingToast };
       },
       onSuccess: (data, variables, context) => {
+        if (data && data.success === false) {
+          toast.error(
+            data.message || "Failed to delete group. Please try again.",
+            {
+              id: context?.loadingToast,
+            }
+          );
+          return;
+        }
         toast.success(
           `Group "${
             context?.groupName || "Unknown"

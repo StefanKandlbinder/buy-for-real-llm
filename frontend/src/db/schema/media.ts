@@ -4,7 +4,6 @@ import {
   varchar,
   text,
   timestamp,
-  serial,
 } from "drizzle-orm/pg-core";
 import { groups } from "./group";
 import { relations } from "drizzle-orm";
@@ -15,7 +14,7 @@ import {
 } from "drizzle-zod";
 
 export const media = pgTable("media", {
-  id: serial("id").primaryKey(),
+  id: varchar("id", { length: 255 }).primaryKey(),
   groupId: integer("group_id")
     .references(() => groups.id, { onDelete: "cascade" })
     .notNull(),

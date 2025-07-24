@@ -1,8 +1,58 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "@/trpc/server/trpc";
 import { groups, media } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 import { insertGroupSchema, updateGroupSchema } from "./validation";
+import { pinata } from "@/lib/config";
+
+// Helper to delete images from Pinata and return status
+async function deleteImagesFromPinata(imageIds: string[]) {
+  let result = null;
+  let error = null;
+  let message = null;
+  let allSucceeded = true;
+  if (imageIds.length > 0) {
+    try {
+      result = await pinata.files.public.delete(imageIds);
+      if (Array.isArray(result)) {
+        const failed = result.filter((res) => res.status !== "OK");
+        if (failed.length > 0) {
+          allSucceeded = false;
+          message =
+            "Some images could not be deleted from Pinata. Group was not deleted. Please try again or check your Pinata dashboard.";
+        }
+      }
+    } catch (err) {
+      error = err;
+      allSucceeded = false;
+      message =
+        "Failed to delete images from Pinata. Group was not deleted. Please try again or check your Pinata dashboard.";
+      console.error("Failed to delete images from Pinata", err);
+    }
+  }
+  return { allSucceeded, result, error, message };
+}
+
+// Helper to recursively collect all child group IDs
+async function getAllChildGroupIds(
+  db: any,
+  parentId: number
+): Promise<number[]> {
+  const directChildren = await db
+    .select({ id: groups.id })
+    .from(groups)
+    .where(eq(groups.parentId, parentId));
+
+  let allChildIds = directChildren.map((child: any) => child.id);
+
+  // Recursively get children of children
+  for (const child of directChildren) {
+    const grandChildren = await getAllChildGroupIds(db, child.id);
+    allChildIds = allChildIds.concat(grandChildren);
+  }
+
+  return allChildIds;
+}
 
 export type NestedGroup = {
   id: number;
@@ -80,7 +130,43 @@ export const groupsRouter = router({
   deleteGroup: protectedProcedure
     .input(z.object({ id: z.int() }))
     .mutation(async ({ ctx, input }) => {
+      // Get all child group IDs recursively
+      const childGroupIds = await getAllChildGroupIds(ctx.db, input.id);
+
+      // Include the parent group ID as well
+      const allGroupIds = [input.id, ...childGroupIds];
+
+      // Fetch all media IDs for the parent group and all child groups
+      const images = await ctx.db
+        .select({ id: media.id })
+        .from(media)
+        .where(inArray(media.groupId, allGroupIds));
+
+      const imageIds = images.map((img) => img.id);
+      const pinataDelete = await deleteImagesFromPinata(imageIds);
+
+      if (!pinataDelete.allSucceeded) {
+        return {
+          success: false,
+          pinataDeleteResult: pinataDelete.result,
+          pinataDeleteError: pinataDelete.error
+            ? String(pinataDelete.error)
+            : null,
+          message: pinataDelete.message,
+        };
+      }
+
+      // Only delete the parent group if all Pinata deletions succeeded
+      // Database cascade will handle deleting child groups and their media
       await ctx.db.delete(groups).where(eq(groups.id, input.id));
-      return { success: true };
+
+      return {
+        success: true,
+        pinataDeleteResult: pinataDelete.result,
+        pinataDeleteError: null,
+        message: null,
+        deletedGroupsCount: allGroupIds.length,
+        deletedImagesCount: imageIds.length,
+      };
     }),
 });
