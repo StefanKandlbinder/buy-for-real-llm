@@ -2,11 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client/client";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { toast } from "sonner";
+import { useAsyncErrorHandler } from "@/components/Error/ErrorProvider";
 
 export function useGroups() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
+  const handleAsyncError = useAsyncErrorHandler();
 
   const groupsQuery = useQuery(
     trpc.groups.getNestedGroups.queryOptions(undefined, {
@@ -52,9 +54,9 @@ export function useGroups() {
         if (context?.previousGroups) {
           queryClient.setQueryData(groupsQueryKey, context.previousGroups);
         }
-        toast.error("Failed to create group. Please try again.", {
-          id: context?.loadingToast,
-        });
+        handleAsyncError(() => {
+          throw err;
+        }, "Failed to create group. Please try again.");
       },
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: groupsQueryKey });
@@ -105,9 +107,9 @@ export function useGroups() {
         if (context?.previousGroups) {
           queryClient.setQueryData(groupsQueryKey, context.previousGroups);
         }
-        toast.error("Failed to delete group. Please try again.", {
-          id: context?.loadingToast,
-        });
+        handleAsyncError(() => {
+          throw err;
+        }, "Failed to delete group. Please try again.");
       },
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: groupsQueryKey });

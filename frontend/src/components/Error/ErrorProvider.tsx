@@ -119,10 +119,8 @@ export function useAsyncErrorHandler() {
   const { reportError } = useErrorReporting();
 
   return React.useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (asyncFn: () => Promise<any>, context?: string) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return async (...args: any[]) => {
+    (asyncFn: () => Promise<unknown>, context?: string) => {
+      return async () => {
         try {
           return await asyncFn();
         } catch (error) {

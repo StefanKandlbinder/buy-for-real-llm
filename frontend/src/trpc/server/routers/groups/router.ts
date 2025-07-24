@@ -4,6 +4,7 @@ import { groups, media } from "@/db/schema";
 import { eq, sql, inArray } from "drizzle-orm";
 import { insertGroupSchema, updateGroupSchema } from "./validation";
 import { pinata } from "@/lib/config";
+import { Context } from "@/trpc/server/context";
 
 // Helper to delete images from Pinata and return status
 async function deleteImagesFromPinata(imageIds: string[]) {
@@ -35,23 +36,28 @@ async function deleteImagesFromPinata(imageIds: string[]) {
 
 // Helper to recursively collect all child group IDs
 async function getAllChildGroupIds(
-  db: any,
+  db: Context["db"],
   parentId: number
 ): Promise<number[]> {
-  const directChildren = await db
-    .select({ id: groups.id })
-    .from(groups)
-    .where(eq(groups.parentId, parentId));
+  const query = sql`
+    WITH RECURSIVE descendant_groups AS (
+      -- Start with the direct children of the given parent
+      SELECT id
+      FROM ${groups}
+      WHERE parent_id = ${parentId}
 
-  let allChildIds = directChildren.map((child: any) => child.id);
+      UNION ALL
 
-  // Recursively get children of children
-  for (const child of directChildren) {
-    const grandChildren = await getAllChildGroupIds(db, child.id);
-    allChildIds = allChildIds.concat(grandChildren);
-  }
+      -- Recursively find children of the groups found above
+      SELECT g.id
+      FROM ${groups} g
+      JOIN descendant_groups dg ON g.parent_id = dg.id
+    )
+    SELECT id FROM descendant_groups;
+  `;
 
-  return allChildIds;
+  const result = await db.execute<{ id: number }>(query);
+  return result.rows.map((row) => row.id);
 }
 
 export type NestedGroup = {
