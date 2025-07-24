@@ -1,4 +1,4 @@
-import { ImageGallery } from "@/components/ImageGallery";
+import { ImageGallery } from "@/components/Group/ImageGallery";
 
 export default async function HomePage() {
   return (

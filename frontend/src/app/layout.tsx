@@ -9,6 +9,9 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { headers } from "next/headers";
 import { dark, shadesOfPurple } from "@clerk/themes";
 import { Toaster } from "@/components/ui/sonner";
+import ErrorBoundary from "@/components/Error/ErrorBoundary";
+import { ErrorProvider } from "@/components/Error/ErrorProvider";
+import { ErrorBoundaryDemo } from "@/components/Error/ErrorBoundaryDemo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,12 +56,16 @@ export default async function RootLayout({
               enableSystem
               disableTransitionOnChange
             >
-              <SidebarProvider>
-                <AppSidebar />
-                <SidebarTrigger />
-                {children}
-                <Toaster />
-              </SidebarProvider>
+              <ErrorProvider>
+                <ErrorBoundary>
+                  <SidebarProvider>
+                    <AppSidebar />
+                    <SidebarTrigger />
+                    {children}
+                    <Toaster />
+                  </SidebarProvider>
+                </ErrorBoundary>
+              </ErrorProvider>
             </ThemeProvider>
           </body>
         </html>

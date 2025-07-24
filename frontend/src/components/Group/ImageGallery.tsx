@@ -3,7 +3,7 @@
 import { GroupNode } from "./GroupNode";
 import { AddGroupDialog } from "./AddGroupDialog";
 import { useGroups } from "@/hooks/group/useGroups";
-import { Skeleton } from "./ui/skeleton";
+import { Skeleton } from "../ui/skeleton";
 
 export function ImageGallery() {
   const { groups, createGroupMutation, deleteGroupMutation, groupsQuery } =

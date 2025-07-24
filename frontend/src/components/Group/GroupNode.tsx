@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { TrashIcon } from "lucide-react";
 import Image from "next/image";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
-import { AddFileDialog } from "./AddFileDialog";
+import { AddFileDialog } from "../File/AddFileDialog";
 import {
   Tooltip,
   TooltipContent,
