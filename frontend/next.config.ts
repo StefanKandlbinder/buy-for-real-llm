@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+const maxFileSizeKB = process.env.NEXT_PUBLIC_MAX_FILE_SIZE_KB || "300";
+const maxFileSizeMB = Math.ceil(parseInt(maxFileSizeKB) / 1024);
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -14,7 +17,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: "2mb",
+      bodySizeLimit: `${maxFileSizeMB}mb`,
     },
   },
 };

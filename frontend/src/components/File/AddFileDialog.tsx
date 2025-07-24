@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -41,8 +41,12 @@ type AddFileDialogProps = {
 
 export function AddFileDialog({ group }: AddFileDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [fileValidationError, setFileValidationError] = useState<string | null>(
+    null
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { uploadFile, uploading, error, reset } = useUploadFile();
+  const { uploadFile, uploading, error, reset, validateFile, maxFileSizeKB } =
+    useUploadFile();
 
   const form = useForm<z.infer<typeof addFileSchema>>({
     resolver: zodResolver(addFileSchema),
@@ -55,6 +59,10 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
 
   const onSubmit = async (values: z.infer<typeof addFileSchema>) => {
     if (!values.file) return;
+
+    // Clear any previous validation errors
+    setFileValidationError(null);
+
     try {
       reset();
       await uploadFile(values.file, group, values.label, values.description);
@@ -62,6 +70,15 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
       form.reset();
     } catch {
       // error handled in hook
+    }
+  };
+
+  const handleFileChange = (file: File | undefined) => {
+    if (file) {
+      const validationError = validateFile(file);
+      setFileValidationError(validationError);
+    } else {
+      setFileValidationError(null);
     }
   };
 
@@ -73,6 +90,7 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
         if (!open) {
           form.reset();
           reset();
+          setFileValidationError(null);
         }
       }}
     >
@@ -86,7 +104,8 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
         <DialogHeader>
           <DialogTitle>Upload File</DialogTitle>
           <DialogDescription>
-            Select a file and optionally provide a label and description.
+            Select a file (max {maxFileSizeKB}KB) and optionally provide a label
+            and description.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -105,9 +124,15 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         field.onChange(file);
+                        handleFileChange(file);
                       }}
                     />
                   </FormControl>
+                  {fileValidationError && (
+                    <p className="text-destructive text-sm mt-1">
+                      {fileValidationError}
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -142,7 +167,11 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
               )}
             />
             <DialogFooter>
-              <Button type="submit" disabled={uploading} className="w-full">
+              <Button
+                type="submit"
+                disabled={uploading || !!fileValidationError}
+                className="w-full"
+              >
                 {uploading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
