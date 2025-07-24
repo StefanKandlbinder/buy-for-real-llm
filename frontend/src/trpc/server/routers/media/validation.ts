@@ -5,9 +5,10 @@ import { z } from "zod";
 // Schema for inserting a new image
 export const insertMediaSchema = createInsertSchema(media, {
   id: z.string(),
-  label: z.string(),
-  description: z.string(),
+  groupId: z.number(),
   url: z.url(),
+  label: z.string(),
+  description: z.string().optional(),
 }).omit({
   createdAt: true,
   updatedAt: true,

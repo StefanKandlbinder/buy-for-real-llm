@@ -133,10 +133,10 @@ export const groupsRouter = router({
       // Get all child group IDs recursively
       const childGroupIds = await getAllChildGroupIds(ctx.db, input.id);
 
-      // Include the parent group ID as well
+      // Include the main group ID and all child group IDs
       const allGroupIds = [input.id, ...childGroupIds];
 
-      // Fetch all media IDs for the parent group and all child groups
+      // Fetch all media IDs from the main group and all child groups
       const images = await ctx.db
         .select({ id: media.id })
         .from(media)

@@ -48,8 +48,8 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
     resolver: zodResolver(addFileSchema),
     defaultValues: {
       file: undefined,
-      label: "",
-      description: "",
+      label: undefined,
+      description: undefined,
     },
   });
 
@@ -57,12 +57,7 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
     if (!values.file) return;
     try {
       reset();
-      await uploadFile(
-        values.file,
-        group,
-        values.label,
-        values.description
-      );
+      await uploadFile(values.file, group, values.label, values.description);
       setIsOpen(false);
       form.reset();
     } catch {
