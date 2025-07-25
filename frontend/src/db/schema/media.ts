@@ -14,7 +14,7 @@ import {
 } from "drizzle-zod";
 
 export const media = pgTable("media", {
-  id: varchar("id", { length: 255 }).primaryKey(),
+  id: varchar("id", { length: 128 }).primaryKey(),
   groupId: integer("group_id")
     .references(() => groups.id, { onDelete: "cascade" })
     .notNull(),
