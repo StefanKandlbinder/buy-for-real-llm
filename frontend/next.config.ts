@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
+    reactCompiler: true,
     serverActions: {
       bodySizeLimit: `${maxFileSizeMB}mb`,
     },

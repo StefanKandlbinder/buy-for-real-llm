@@ -1,52 +1,247 @@
-# Next.js Project Rules
+---
+alwaysApply: true
+---
 
-This document outlines the key architectural rules, conventions, and best practices for the Next.js frontend of the "Buy For Real" application. Adhering to these rules is crucial for maintaining a clean, consistent, and scalable codebase.
+# Buy For Real - Next.js Project Rules
 
-## 1. API Layer: tRPC and Server Actions Only
+This document outlines the key architectural rules, conventions, and best practices for this Next.js application. Adhering to these rules is crucial for maintaining a clean, consistent, and scalable codebase.
+
+## 1. Core Technologies & Versions
+
+This project uses a modern, type-safe stack.
+
+- **Framework**: Next.js 14+ (App Router)
+- **React**: React 18+ (with React Compiler enabled)
+- **API Layer**: tRPC v10
+- **Database**: PostgreSQL
+- **ORM**: Drizzle
+- **Authentication**: Clerk
+- **Styling**: Tailwind CSS
+- **UI Components**: shadcn/ui
+- **State Management**: React Query v5 (via tRPC)
+- **Schema Validation**: Zod
+- **File Storage**: Pinata (via IPFS)
+- **Deployment**: Vercel
+- **Package Manager**: pnpm
+
+## 2. API Layer: tRPC and Server Actions
 
 To ensure end-to-end type safety and a single, consistent API pattern, this project strictly uses tRPC for all database and server-side logic communication.
 
-- **DO NOT** use standard Next.js API Routes (`/app/api/**/route.ts`). The `.cursorrules` file enforces this.
+- **DO NOT** use standard Next.js API Routes (`/app/api/**/route.ts`). The only exception is the tRPC handler itself at `/app/api/trpc/[trpc]/route.ts`.
 - **All** database interactions must be exposed through tRPC procedures.
 
-### Handling File Uploads
+### File Uploads
 
-For operations that inherently require `multipart/form-data`, such as file uploads, the designated pattern is to use **Next.js Server Actions**.
+For operations requiring `multipart/form-data`, such as file uploads, the designated pattern is **Next.js Server Actions**.
 
-1.  Create a Server Action in the `/src/actions` directory.
-2.  The action should accept `FormData`.
-3.  Inside the action, perform the necessary operations with the form data (e.g., upload the file to a service like Pinata).
-4.  For any subsequent database operations (e.g., saving the file URL and metadata), the action **must** use the server-side tRPC caller (`/src/trpc/server/server.ts`). This maintains the single-source-of-truth for database logic within the tRPC API.
-5.  Use `revalidatePath` or `revalidateTag` within the action to update the client-side cache as needed.
+1.  Create the Server Action in the `/src/actions` directory.
+2.  The action must accept `FormData`.
+3.  Inside the action, perform the file upload to Pinata.
+4.  For subsequent database operations (e.g., saving the file URL and metadata), the action **must** use the server-side tRPC caller (`/src/trpc/server/server.ts`). This maintains a single source of truth for database logic.
+5.  Use `revalidatePath` or `revalidateTag` within the action to update the client-side cache.
 
-## 2. Database and Schema
+## 3. Database and Schema
 
-The project uses Drizzle ORM. Consistency between the Drizzle schema and the database migrations is paramount.
+The project uses Drizzle ORM with a PostgreSQL database.
 
-- **Schema as Source of Truth:** The Drizzle schema files in `/src/db/schema/` are the source of truth for the database structure.
-- **Migration Generation:** Always generate migrations from schema changes using the provided script:
+- **Schema as Source of Truth**: The Drizzle schema files in `/src/db/schema/` are the definitive source for the database structure.
+- **Database Client**: The database client is configured in `/src/db/drizzle.ts`.
+- **Migration Generation**: Always generate migrations from schema changes using:
   ```bash
   pnpm db:generate
   ```
-- **Applying Migrations:** Apply migrations using the script:
+- **Applying Migrations**: Apply migrations to the database using:
   ```bash
   pnpm db:migrate
   ```
-- **Data Consistency:** Ensure that column types in the schema (e.g., `varchar`, `serial`, `timestamp`) perfectly match the intended types in the SQL migration files. Any discrepancies will lead to runtime errors. For example, the `media.id` is a `varchar(128)` to store CIDs, not a `serial`.
 
-## 3. State Management
+## 4. React Compiler & Performance Optimization
 
-- **Server State:** Use React Query (via the tRPC client) for caching, refetching, and managing all server state.
-- **Client State:** For simple, local component state, use `useState` or `useReducer`. Avoid complex client-side state management libraries unless absolutely necessary.
+This project uses the experimental **React Compiler**, enabled directly through the Next.js configuration (`next.config.ts`). The compiler automatically memoizes components and hooks, reducing the need for manual optimization with `useMemo`, `useCallback`, and `memo`.
 
-## 4. Component Architecture
+- **DO NOT** manually use `useMemo`, `useCallback`, or `React.memo`. Trust the compiler to handle optimization.
+- Write components and hooks as simple, plain JavaScript/TypeScript functions.
+- If the compiler causes issues with a specific component, you can opt out by adding the `"use no memo";` directive at the top of the component file. Use this sparingly and only as a last resort.
 
-- **Server Components by Default:** Embrace the Next.js App Router paradigm. Use Server Components whenever possible to fetch data and render content on the server.
-- **Client Components for Interactivity:** Use the `"use client";` directive only for components that require interactivity (e.g., event handlers, hooks like `useState`, `useEffect`).
-- **Keep Client Components Small:** Isolate client-side interactivity into the smallest possible components (leaf components) to maximize the benefits of Server Components.
+### Ref as Prop (No `forwardRef` Required)
 
-## 5. Code Organization
+With React 19 features, you can pass `ref` as a direct prop to your components without needing `forwardRef`.
 
-- **Server Actions:** Place all Server Actions in `/src/actions`.
-- **tRPC Routers:** Organize tRPC routers by domain under `/src/trpc/server/routers`. Each router should have its own validation schema file.
-- **Custom Hooks:** Place custom hooks in the `/src/hooks` directory, organized by domain (e.g., `/hooks/group`, `/hooks/file`).
+```typescript
+// ✅ React 19 Style - Direct ref prop usage
+type TInputProps = {
+  ref?: React.Ref<HTMLInputElement>;
+  label: string;
+  // ...other props
+};
+
+const TextInput = ({ ref, label, ...props }: TInputProps) => {
+  return (
+    <div>
+      <label>{label}</label>
+      <input ref={ref} {...props} />
+    </div>
+  );
+};
+
+// Usage
+const ParentComponent = () => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return <TextInput ref={inputRef} label="Username" />;
+};
+```
+
+## 5. State Management
+
+- **Server State**: Use React Query (via the tRPC client) for all server state management, including caching, refetching, and optimistic updates.
+- **Client State**: For simple, local component state, use `useState` or `useReducer`. Avoid introducing complex client-side state management libraries.
+
+## 6. Component Architecture
+
+- **Server Components by Default**: Embrace the Next.js App Router paradigm. Use Server Components whenever possible to fetch data and render content on the server.
+- **Client Components for Interactivity**: Use the `"use client";` directive only for components that require interactivity (e.g., event handlers, hooks like `useState`, `useEffect`).
+- **Keep Client Components Small**: Isolate client-side interactivity into the smallest possible components (leaf components) to maximize the benefits of Server Components.
+
+## 7. Code Organization
+
+- **Server Actions**: `/src/actions`
+- **tRPC Routers**: `/src/trpc/server/routers` (organized by domain, each with its own `router.ts` and `validation.ts`)
+- **Database Schema**: `/src/db/schema` (organized by table)
+- **Drizzle Client**: `/src/db/drizzle.ts`
+- **Custom Hooks**: `/src/hooks` (organized by domain)
+- **UI Components**: `/src/components/ui` (for shadcn components) and `/src/components` for custom composite components.
+
+## 8. Authentication
+
+- Authentication is handled by **Clerk**.
+- The `auth` object from Clerk is available in the tRPC context for protecting procedures.
+- Use `<SignedIn>`, `<SignedOut>`, and `useUser()` for controlling UI elements on the client.
+
+## 9. Deployment
+
+- The application is configured for deployment on **Vercel**.
+- The `vercel.json` file contains configuration for headers and other platform settings.
+- Environment variables must be set in the Vercel project settings for production builds.
+
+# Buy For Real - Next.js Project Rules
+
+This document outlines the key architectural rules, conventions, and best practices for this Next.js application. Adhering to these rules is crucial for maintaining a clean, consistent, and scalable codebase.
+
+## 1. Core Technologies & Versions
+
+This project uses a modern, type-safe stack.
+
+- **Framework**: Next.js 14+ (App Router)
+- **React**: React 18+ (with React Compiler enabled)
+- **API Layer**: tRPC v10
+- **Database**: PostgreSQL
+- **ORM**: Drizzle
+- **Authentication**: Clerk
+- **Styling**: Tailwind CSS
+- **UI Components**: shadcn/ui
+- **State Management**: React Query v5 (via tRPC)
+- **Schema Validation**: Zod
+- **File Storage**: Pinata (via IPFS)
+- **Deployment**: Vercel
+- **Package Manager**: pnpm
+
+## 2. API Layer: tRPC and Server Actions
+
+To ensure end-to-end type safety and a single, consistent API pattern, this project strictly uses tRPC for all database and server-side logic communication.
+
+- **DO NOT** use standard Next.js API Routes (`/app/api/**/route.ts`). The only exception is the tRPC handler itself at `/app/api/trpc/[trpc]/route.ts`.
+- **All** database interactions must be exposed through tRPC procedures.
+
+### File Uploads
+
+For operations requiring `multipart/form-data`, such as file uploads, the designated pattern is **Next.js Server Actions**.
+
+1.  Create the Server Action in the `/src/actions` directory.
+2.  The action must accept `FormData`.
+3.  Inside the action, perform the file upload to Pinata.
+4.  For subsequent database operations (e.g., saving the file URL and metadata), the action **must** use the server-side tRPC caller (`/src/trpc/server/server.ts`). This maintains a single source of truth for database logic.
+5.  Use `revalidatePath` or `revalidateTag` within the action to update the client-side cache.
+
+## 3. Database and Schema
+
+The project uses Drizzle ORM with a PostgreSQL database.
+
+- **Schema as Source of Truth**: The Drizzle schema files in `/src/db/schema/` are the definitive source for the database structure.
+- **Database Client**: The database client is configured in `/src/db/drizzle.ts`.
+- **Migration Generation**: Always generate migrations from schema changes using:
+  ```bash
+  pnpm db:generate
+  ```
+- **Applying Migrations**: Apply migrations to the database using:
+  ```bash
+  pnpm db:migrate
+  ```
+
+## 4. React Compiler & Performance Optimization
+
+This project uses the experimental **React Compiler**, enabled directly through the Next.js configuration (`next.config.ts`). The compiler automatically memoizes components and hooks, reducing the need for manual optimization with `useMemo`, `useCallback`, and `memo`.
+
+- **DO NOT** manually use `useMemo`, `useCallback`, or `React.memo`. Trust the compiler to handle optimization.
+- Write components and hooks as simple, plain JavaScript/TypeScript functions.
+- If the compiler causes issues with a specific component, you can opt out by adding the `"use no memo";` directive at the top of the component file. Use this sparingly and only as a last resort.
+
+### Ref as Prop (No `forwardRef` Required)
+
+With React 19 features, you can pass `ref` as a direct prop to your components without needing `forwardRef`.
+
+```typescript
+// ✅ React 19 Style - Direct ref prop usage
+type TInputProps = {
+  ref?: React.Ref<HTMLInputElement>;
+  label: string;
+  // ...other props
+};
+
+const TextInput = ({ ref, label, ...props }: TInputProps) => {
+  return (
+    <div>
+      <label>{label}</label>
+      <input ref={ref} {...props} />
+    </div>
+  );
+};
+
+// Usage
+const ParentComponent = () => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return <TextInput ref={inputRef} label="Username" />;
+};
+```
+
+## 5. State Management
+
+- **Server State**: Use React Query (via the tRPC client) for all server state management, including caching, refetching, and optimistic updates.
+- **Client State**: For simple, local component state, use `useState` or `useReducer`. Avoid introducing complex client-side state management libraries.
+
+## 6. Component Architecture
+
+- **Server Components by Default**: Embrace the Next.js App Router paradigm. Use Server Components whenever possible to fetch data and render content on the server.
+- **Client Components for Interactivity**: Use the `"use client";` directive only for components that require interactivity (e.g., event handlers, hooks like `useState`, `useEffect`).
+- **Keep Client Components Small**: Isolate client-side interactivity into the smallest possible components (leaf components) to maximize the benefits of Server Components.
+
+## 7. Code Organization
+
+- **Server Actions**: `/src/actions`
+- **tRPC Routers**: `/src/trpc/server/routers` (organized by domain, each with its own `router.ts` and `validation.ts`)
+- **Database Schema**: `/src/db/schema` (organized by table)
+- **Drizzle Client**: `/src/db/drizzle.ts`
+- **Custom Hooks**: `/src/hooks` (organized by domain)
+- **UI Components**: `/src/components/ui` (for shadcn components) and `/src/components` for custom composite components.
+
+## 8. Authentication
+
+- Authentication is handled by **Clerk**.
+- The `auth` object from Clerk is available in the tRPC context for protecting procedures.
+- Use `<SignedIn>`, `<SignedOut>`, and `useUser()` for controlling UI elements on the client.
+
+## 9. Deployment
+
+- The application is configured for deployment on **Vercel**.
+- The `vercel.json` file contains configuration for headers and other platform settings.
+- Environment variables must be set in the Vercel project settings for production builds.
