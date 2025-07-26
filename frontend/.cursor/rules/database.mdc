@@ -1,0 +1,706 @@
+# Database (Drizzle ORM + PostgreSQL) Rules
+
+## Core Configuration
+
+### Versions
+
+- **drizzle-orm**: 0.44.3
+- **drizzle-kit**: 0.31.4
+- **drizzle-zod**: 0.8.2
+- **@neondatabase/serverless**: 1.0.1
+- **Database**: PostgreSQL (via Neon)
+
+### Database Client Setup
+
+```typescript
+// src/db/drizzle.ts
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { neon } from "@neondatabase/serverless";
+import * as schema from "./schema";
+
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is not set");
+}
+
+const sql = neon(process.env.DATABASE_URL);
+export const db = drizzle(sql, { schema });
+
+export type Database = typeof db;
+```
+
+### Drizzle Configuration
+
+```typescript
+// drizzle.config.ts
+import { defineConfig } from "drizzle-kit";
+
+export default defineConfig({
+  schema: "./src/db/schema/*",
+  out: "./drizzle",
+  dialect: "postgresql",
+  dbCredentials: {
+    url: process.env.DATABASE_URL!,
+  },
+  verbose: true,
+  strict: true,
+});
+```
+
+### Schema Organization
+
+```typescript
+// src/db/schema/index.ts
+export * from "./users";
+export * from "./groups";
+export * from "./media";
+// Export all schemas for centralized import
+```
+
+## Schema Definition Patterns
+
+### Base Schema Template
+
+```typescript
+// src/db/schema/example.ts
+import {
+  pgTable,
+  text,
+  timestamp,
+  integer,
+  boolean,
+  uuid,
+} from "drizzle-orm/pg-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { z } from "zod";
+
+export const exampleTable = pgTable("examples", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  userId: text("user_id").notNull(), // Foreign key to Clerk user
+});
+
+// Zod schemas for validation
+export const insertExampleSchema = createInsertSchema(exampleTable, {
+  name: z.string().min(1).max(255),
+  description: z.string().max(1000).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectExampleSchema = createSelectSchema(exampleTable);
+export const updateExampleSchema = insertExampleSchema.partial().extend({
+  id: z.string().uuid(),
+});
+
+export type Example = typeof exampleTable.$inferSelect;
+export type NewExample = typeof exampleTable.$inferInsert;
+```
+
+### Groups Schema
+
+```typescript
+// src/db/schema/groups.ts
+import { pgTable, text, timestamp, integer, uuid } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { z } from "zod";
+import { media } from "./media";
+
+export const groups = pgTable("groups", {
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  name: text("name").notNull(),
+  parentId: integer("parent_id").references(() => groups.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  userId: text("user_id").notNull(),
+});
+
+// Relations
+export const groupsRelations = relations(groups, ({ one, many }) => ({
+  parent: one(groups, {
+    fields: [groups.parentId],
+    references: [groups.id],
+    relationName: "parent_child",
+  }),
+  children: many(groups, {
+    relationName: "parent_child",
+  }),
+  media: many(media),
+}));
+
+// Zod schemas
+export const insertGroupSchema = createInsertSchema(groups, {
+  name: z.string().min(1).max(255),
+  parentId: z.number().int().positive().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectGroupSchema = createSelectSchema(groups);
+export const updateGroupSchema = insertGroupSchema.partial().extend({
+  id: z.number().int().positive(),
+});
+
+export type Group = typeof groups.$inferSelect;
+export type NewGroup = typeof groups.$inferInsert;
+```
+
+### Media Schema
+
+```typescript
+// src/db/schema/media.ts
+import { pgTable, text, timestamp, integer, uuid } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { z } from "zod";
+import { groups } from "./groups";
+
+export const media = pgTable("media", {
+  id: text("id").primaryKey(), // Pinata file ID
+  url: text("url").notNull(),
+  label: text("label"),
+  description: text("description"),
+  groupId: integer("group_id")
+    .notNull()
+    .references(() => groups.id, {
+      onDelete: "cascade",
+    }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Relations
+export const mediaRelations = relations(media, ({ one }) => ({
+  group: one(groups, {
+    fields: [media.groupId],
+    references: [groups.id],
+  }),
+}));
+
+// Zod schemas
+export const insertMediaSchema = createInsertSchema(media, {
+  id: z.string(),
+  url: z.string().url(),
+  label: z.string().min(1).max(255),
+  description: z.string().max(1000).optional(),
+  groupId: z.number().int().positive(),
+}).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectMediaSchema = createSelectSchema(media);
+export const updateMediaSchema = z.object({
+  id: z.string(),
+  label: z.string().min(1).max(255).optional(),
+  description: z.string().max(1000).optional(),
+  url: z.string().url().optional(),
+});
+
+export type Media = typeof media.$inferSelect;
+export type NewMedia = typeof media.$inferInsert;
+```
+
+## Query Patterns
+
+### Basic CRUD Operations
+
+```typescript
+// Basic queries
+export async function getAllGroups(userId: string) {
+  return await db.select().from(groups).where(eq(groups.userId, userId));
+}
+
+export async function getGroupById(id: number, userId: string) {
+  const result = await db
+    .select()
+    .from(groups)
+    .where(and(eq(groups.id, id), eq(groups.userId, userId)))
+    .limit(1);
+
+  return result[0];
+}
+
+// Create
+export async function createGroup(data: NewGroup) {
+  const [newGroup] = await db
+    .insert(groups)
+    .values({
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning();
+
+  return newGroup;
+}
+
+// Update
+export async function updateGroup(
+  id: number,
+  data: Partial<NewGroup>,
+  userId: string
+) {
+  const [updatedGroup] = await db
+    .update(groups)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(groups.id, id), eq(groups.userId, userId)))
+    .returning();
+
+  return updatedGroup;
+}
+
+// Delete
+export async function deleteGroup(id: number, userId: string) {
+  await db
+    .delete(groups)
+    .where(and(eq(groups.id, id), eq(groups.userId, userId)));
+}
+```
+
+### Complex Queries with Relations
+
+```typescript
+// Nested groups with media
+export async function getNestedGroups(userId: string) {
+  return await db.query.groups.findMany({
+    where: eq(groups.userId, userId),
+    with: {
+      media: true,
+      children: {
+        with: {
+          media: true,
+        },
+      },
+    },
+    orderBy: [groups.name],
+  });
+}
+
+// Group with parent and children
+export async function getGroupWithRelations(id: number, userId: string) {
+  return await db.query.groups.findFirst({
+    where: and(eq(groups.id, id), eq(groups.userId, userId)),
+    with: {
+      parent: true,
+      children: {
+        with: {
+          media: true,
+        },
+      },
+      media: true,
+    },
+  });
+}
+```
+
+### Recursive Queries (CTEs)
+
+```typescript
+// Get all descendant groups
+export async function getAllDescendants(parentId: number, userId: string) {
+  return await db.execute(sql`
+    WITH RECURSIVE descendant_groups AS (
+      -- Base case: direct children
+      SELECT id, name, parent_id, user_id
+      FROM ${groups}
+      WHERE parent_id = ${parentId} AND user_id = ${userId}
+      
+      UNION ALL
+      
+      -- Recursive case: children of children
+      SELECT g.id, g.name, g.parent_id, g.user_id
+      FROM ${groups} g
+      INNER JOIN descendant_groups dg ON g.parent_id = dg.id
+      WHERE g.user_id = ${userId}
+    )
+    SELECT * FROM descendant_groups
+  `);
+}
+
+// Get full path to root
+export async function getGroupPath(groupId: number, userId: string) {
+  return await db.execute(sql`
+    WITH RECURSIVE group_path AS (
+      -- Base case: start with the given group
+      SELECT id, name, parent_id, user_id, 0 as level
+      FROM ${groups}
+      WHERE id = ${groupId} AND user_id = ${userId}
+      
+      UNION ALL
+      
+      -- Recursive case: get parent groups
+      SELECT g.id, g.name, g.parent_id, g.user_id, gp.level + 1
+      FROM ${groups} g
+      INNER JOIN group_path gp ON g.id = gp.parent_id
+      WHERE g.user_id = ${userId}
+    )
+    SELECT * FROM group_path ORDER BY level DESC
+  `);
+}
+```
+
+### Aggregation Queries
+
+```typescript
+// Count media per group
+export async function getGroupsWithMediaCount(userId: string) {
+  return await db
+    .select({
+      id: groups.id,
+      name: groups.name,
+      mediaCount: count(media.id),
+    })
+    .from(groups)
+    .leftJoin(media, eq(groups.id, media.groupId))
+    .where(eq(groups.userId, userId))
+    .groupBy(groups.id, groups.name)
+    .orderBy(groups.name);
+}
+
+// Get media statistics
+export async function getMediaStatistics(userId: string) {
+  return await db
+    .select({
+      totalMedia: count(media.id),
+      totalGroups: countDistinct(media.groupId),
+    })
+    .from(media)
+    .innerJoin(groups, eq(media.groupId, groups.id))
+    .where(eq(groups.userId, userId));
+}
+```
+
+### Pagination
+
+```typescript
+// Cursor-based pagination
+export async function getGroupsPaginated(
+  userId: string,
+  limit: number = 20,
+  cursor?: number
+) {
+  const whereConditions = [eq(groups.userId, userId)];
+
+  if (cursor) {
+    whereConditions.push(gt(groups.id, cursor));
+  }
+
+  const results = await db
+    .select()
+    .from(groups)
+    .where(and(...whereConditions))
+    .orderBy(groups.id)
+    .limit(limit + 1); // Fetch one extra to determine if there's a next page
+
+  const hasNextPage = results.length > limit;
+  const items = hasNextPage ? results.slice(0, -1) : results;
+  const nextCursor = hasNextPage ? items[items.length - 1]?.id : null;
+
+  return {
+    items,
+    nextCursor,
+    hasNextPage,
+  };
+}
+
+// Offset-based pagination
+export async function getGroupsPaginatedOffset(
+  userId: string,
+  page: number = 1,
+  limit: number = 20
+) {
+  const offset = (page - 1) * limit;
+
+  const [items, totalCount] = await Promise.all([
+    db
+      .select()
+      .from(groups)
+      .where(eq(groups.userId, userId))
+      .orderBy(groups.name)
+      .limit(limit)
+      .offset(offset),
+    db.select({ count: count() }).from(groups).where(eq(groups.userId, userId)),
+  ]);
+
+  const total = totalCount[0]?.count ?? 0;
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    items,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  };
+}
+```
+
+## Advanced Query Patterns
+
+### Search and Filtering
+
+```typescript
+// Full-text search
+export async function searchGroups(
+  userId: string,
+  searchTerm: string,
+  filters?: {
+    hasMedia?: boolean;
+    parentId?: number;
+  }
+) {
+  const whereConditions = [
+    eq(groups.userId, userId),
+    ilike(groups.name, `%${searchTerm}%`),
+  ];
+
+  if (filters?.parentId) {
+    whereConditions.push(eq(groups.parentId, filters.parentId));
+  }
+
+  let query = db
+    .select({
+      id: groups.id,
+      name: groups.name,
+      parentId: groups.parentId,
+      mediaCount: count(media.id),
+    })
+    .from(groups)
+    .leftJoin(media, eq(groups.id, media.groupId))
+    .where(and(...whereConditions))
+    .groupBy(groups.id, groups.name, groups.parentId);
+
+  if (filters?.hasMedia) {
+    query = query.having(gt(count(media.id), 0));
+  }
+
+  return await query.orderBy(groups.name);
+}
+```
+
+### Batch Operations
+
+```typescript
+// Batch insert
+export async function createMultipleGroups(groupsData: NewGroup[]) {
+  return await db.insert(groups).values(groupsData).returning();
+}
+
+// Batch update
+export async function updateMultipleGroups(
+  updates: Array<{ id: number; data: Partial<NewGroup> }>,
+  userId: string
+) {
+  return await db.transaction(async (tx) => {
+    const results = [];
+
+    for (const update of updates) {
+      const [result] = await tx
+        .update(groups)
+        .set({
+          ...update.data,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(groups.id, update.id), eq(groups.userId, userId)))
+        .returning();
+
+      if (result) {
+        results.push(result);
+      }
+    }
+
+    return results;
+  });
+}
+
+// Batch delete
+export async function deleteMultipleGroups(ids: number[], userId: string) {
+  return await db
+    .delete(groups)
+    .where(and(inArray(groups.id, ids), eq(groups.userId, userId)))
+    .returning();
+}
+```
+
+### Transactions
+
+```typescript
+// Move group with all children
+export async function moveGroupWithChildren(
+  groupId: number,
+  newParentId: number | null,
+  userId: string
+) {
+  return await db.transaction(async (tx) => {
+    // First, update the group
+    const [updatedGroup] = await tx
+      .update(groups)
+      .set({ parentId: newParentId, updatedAt: new Date() })
+      .where(and(eq(groups.id, groupId), eq(groups.userId, userId)))
+      .returning();
+
+    if (!updatedGroup) {
+      throw new Error("Group not found");
+    }
+
+    // Get all children and update their paths if needed
+    const children = await tx
+      .select()
+      .from(groups)
+      .where(and(eq(groups.parentId, groupId), eq(groups.userId, userId)));
+
+    return {
+      updatedGroup,
+      affectedChildren: children.length,
+    };
+  });
+}
+
+// Transfer media between groups
+export async function transferMedia(
+  mediaIds: string[],
+  targetGroupId: number,
+  userId: string
+) {
+  return await db.transaction(async (tx) => {
+    // Verify target group exists and belongs to user
+    const targetGroup = await tx
+      .select()
+      .from(groups)
+      .where(and(eq(groups.id, targetGroupId), eq(groups.userId, userId)))
+      .limit(1);
+
+    if (!targetGroup[0]) {
+      throw new Error("Target group not found");
+    }
+
+    // Update media
+    const updatedMedia = await tx
+      .update(media)
+      .set({ groupId: targetGroupId, updatedAt: new Date() })
+      .where(inArray(media.id, mediaIds))
+      .returning();
+
+    return updatedMedia;
+  });
+}
+```
+
+## Migration Patterns
+
+### Migration Scripts
+
+```sql
+-- drizzle/0001_initial.sql
+CREATE TABLE IF NOT EXISTS "groups" (
+	"id" integer PRIMARY KEY GENERATED BY DEFAULT AS IDENTITY (sequence name "groups_id_seq" INCREMENT BY 1 MINVALUE 1 MAXVALUE 2147483647 START WITH 1 CACHE 1),
+	"name" text NOT NULL,
+	"parent_id" integer,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"user_id" text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "media" (
+	"id" text PRIMARY KEY NOT NULL,
+	"url" text NOT NULL,
+	"label" text,
+	"description" text,
+	"group_id" integer NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+
+DO $$ BEGIN
+ ALTER TABLE "groups" ADD CONSTRAINT "groups_parent_id_groups_id_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."groups"("id") ON DELETE no action ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+ ALTER TABLE "media" ADD CONSTRAINT "media_group_id_groups_id_fk" FOREIGN KEY ("group_id") REFERENCES "public"."groups"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS "groups_user_id_idx" ON "groups" ("user_id");
+CREATE INDEX IF NOT EXISTS "groups_parent_id_idx" ON "groups" ("parent_id");
+CREATE INDEX IF NOT EXISTS "media_group_id_idx" ON "media" ("group_id");
+```
+
+### Database Scripts
+
+```json
+{
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:drop": "drizzle-kit drop",
+    "db:check": "drizzle-kit check",
+    "db:up": "drizzle-kit up"
+  }
+}
+```
+
+## Best Practices
+
+### Schema Design
+
+- Use consistent naming conventions (snake_case for columns)
+- Always include `createdAt` and `updatedAt` timestamps
+- Use appropriate data types and constraints
+- Define proper foreign key relationships
+- Add indexes for frequently queried columns
+
+### Query Optimization
+
+- Use select only the columns you need
+- Implement proper pagination for large datasets
+- Use transactions for related operations
+- Add database indexes for performance
+- Use prepared statements for repeated queries
+
+### Data Validation
+
+- Use Drizzle-Zod for schema validation
+- Validate data at the application level
+- Implement proper error handling
+- Use TypeScript for compile-time safety
+
+### Security
+
+- Always filter by user ID for multi-tenant data
+- Use parameterized queries to prevent SQL injection
+- Implement proper authorization checks
+- Validate all inputs before database operations
+
+### Performance
+
+- Use connection pooling
+- Implement proper caching strategies
+- Monitor query performance
+- Use database indexes appropriately
+- Consider read replicas for heavy read workloads
+  description:
+  globs:
+  alwaysApply: false
+
+---

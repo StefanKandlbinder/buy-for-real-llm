@@ -1,0 +1,998 @@
+# File Storage (Pinata IPFS) Rules
+
+## Core Configuration
+
+### Versions
+
+- **pinata**: 2.4.9
+- **Integration**: IPFS for decentralized file storage
+- **File Types**: Images, documents, media files
+
+### Environment Variables
+
+```bash
+# .env.local
+PINATA_JWT=your_pinata_jwt_token
+PINATA_GATEWAY_URL=https://gateway.pinata.cloud
+NEXT_PUBLIC_PINATA_GATEWAY_URL=https://gateway.pinata.cloud
+PINATA_GATEWAY_TOKEN=your_gateway_token
+```
+
+### Pinata Client Setup
+
+```typescript
+// lib/pinata.ts
+import { PinataSDK } from "pinata";
+
+if (!process.env.PINATA_JWT) {
+  throw new Error("PINATA_JWT is not set in environment variables");
+}
+
+export const pinata = new PinataSDK({
+  pinataJwt: process.env.PINATA_JWT,
+  pinataGateway:
+    process.env.PINATA_GATEWAY_URL || "https://gateway.pinata.cloud",
+});
+
+// Gateway configuration
+export const gatewayConfig = {
+  baseUrl:
+    process.env.NEXT_PUBLIC_PINATA_GATEWAY_URL ||
+    "https://gateway.pinata.cloud",
+  token: process.env.PINATA_GATEWAY_TOKEN,
+};
+
+// File size limits (in bytes)
+export const FILE_LIMITS = {
+  maxImageSize: 5 * 1024 * 1024, // 5MB
+  maxDocumentSize: 10 * 1024 * 1024, // 10MB
+  maxVideoSize: 100 * 1024 * 1024, // 100MB
+};
+
+// Supported file types
+export const SUPPORTED_TYPES = {
+  images: ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"],
+  documents: [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ],
+  videos: ["video/mp4", "video/webm", "video/ogg"],
+};
+```
+
+## File Upload Implementation
+
+### Server Action for File Upload
+
+```typescript
+// actions/mediaActions.ts
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { pinata } from "@/lib/pinata";
+import { db } from "@/db/drizzle";
+import { media } from "@/db/schema/media";
+
+export async function uploadMediaAction(formData: FormData) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    const file = formData.get("file") as File;
+    const groupId = parseInt(formData.get("groupId") as string, 10);
+    const label = formData.get("label") as string;
+    const description = formData.get("description") as string;
+
+    if (!file || !groupId || !label) {
+      throw new Error("Missing required fields");
+    }
+
+    // Validate file
+    const validation = validateFile(file);
+    if (!validation.isValid) {
+      throw new Error(validation.error);
+    }
+
+    // Upload to Pinata
+    const uploadResult = await pinata.upload.file(file).addMetadata({
+      name: label,
+      keyvalues: {
+        originalName: file.name,
+        uploadedBy: userId,
+        groupId: groupId.toString(),
+        description: description || "",
+        mimeType: file.type,
+        size: file.size.toString(),
+      },
+    });
+
+    // Save to database
+    const newMedia = await db
+      .insert(media)
+      .values({
+        id: uploadResult.IpfsHash,
+        url: `${process.env.NEXT_PUBLIC_PINATA_GATEWAY_URL}/ipfs/${uploadResult.IpfsHash}`,
+        label,
+        description,
+        groupId,
+      })
+      .returning();
+
+    revalidatePath("/");
+    return {
+      success: true,
+      media: newMedia[0],
+      ipfsHash: uploadResult.IpfsHash,
+    };
+  } catch (error) {
+    console.error("Upload error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Upload failed",
+    };
+  }
+}
+
+// File validation helper
+function validateFile(file: File): { isValid: boolean; error?: string } {
+  // Check file size
+  if (
+    file.size > FILE_LIMITS.maxImageSize &&
+    SUPPORTED_TYPES.images.includes(file.type)
+  ) {
+    return { isValid: false, error: "Image file too large (max 5MB)" };
+  }
+  if (
+    file.size > FILE_LIMITS.maxDocumentSize &&
+    SUPPORTED_TYPES.documents.includes(file.type)
+  ) {
+    return { isValid: false, error: "Document file too large (max 10MB)" };
+  }
+  if (
+    file.size > FILE_LIMITS.maxVideoSize &&
+    SUPPORTED_TYPES.videos.includes(file.type)
+  ) {
+    return { isValid: false, error: "Video file too large (max 100MB)" };
+  }
+
+  // Check file type
+  const allSupportedTypes = [
+    ...SUPPORTED_TYPES.images,
+    ...SUPPORTED_TYPES.documents,
+    ...SUPPORTED_TYPES.videos,
+  ];
+
+  if (!allSupportedTypes.includes(file.type)) {
+    return { isValid: false, error: "Unsupported file type" };
+  }
+
+  return { isValid: true };
+}
+```
+
+### File Upload Hook
+
+```typescript
+// hooks/file/useFileUpload.ts
+import { useState } from "react";
+import { uploadMediaAction } from "@/actions/mediaActions";
+import { toast } from "sonner";
+
+type TUploadProgress = {
+  progress: number;
+  status: "idle" | "uploading" | "success" | "error";
+  fileName?: string;
+};
+
+export function useFileUpload() {
+  const [uploadProgress, setUploadProgress] = useState<TUploadProgress>({
+    progress: 0,
+    status: "idle",
+  });
+
+  const uploadFile = async (
+    file: File,
+    groupId: number,
+    label: string,
+    description?: string
+  ) => {
+    setUploadProgress({
+      progress: 0,
+      status: "uploading",
+      fileName: file.name,
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("groupId", groupId.toString());
+      formData.append("label", label);
+      if (description) {
+        formData.append("description", description);
+      }
+
+      // Simulate progress (since Pinata doesn't provide real-time progress)
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => ({
+          ...prev,
+          progress: Math.min(prev.progress + 10, 90),
+        }));
+      }, 200);
+
+      const result = await uploadMediaAction(formData);
+
+      clearInterval(progressInterval);
+
+      if (result.success) {
+        setUploadProgress({
+          progress: 100,
+          status: "success",
+          fileName: file.name,
+        });
+
+        toast.success(`File "${file.name}" uploaded successfully`);
+        return result;
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      setUploadProgress({
+        progress: 0,
+        status: "error",
+        fileName: file.name,
+      });
+
+      const errorMessage =
+        error instanceof Error ? error.message : "Upload failed";
+      toast.error(errorMessage);
+      throw error;
+    }
+  };
+
+  const resetProgress = () => {
+    setUploadProgress({
+      progress: 0,
+      status: "idle",
+    });
+  };
+
+  return {
+    uploadFile,
+    uploadProgress,
+    resetProgress,
+    isUploading: uploadProgress.status === "uploading",
+  };
+}
+```
+
+### File Upload Component
+
+```typescript
+// components/file/FileUploadDialog.tsx
+"use client";
+
+import { useState } from "react";
+import { useFileUpload } from "@/hooks/file/useFileUpload";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Upload, X, FileIcon } from "lucide-react";
+
+type TFileUploadDialogProps = {
+  groupId: number;
+  onUploadComplete?: () => void;
+};
+
+export function FileUploadDialog({
+  groupId,
+  onUploadComplete,
+}: TFileUploadDialogProps) {
+  const [open, setOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [label, setLabel] = useState("");
+  const [description, setDescription] = useState("");
+  const { uploadFile, uploadProgress, resetProgress, isUploading } =
+    useFileUpload();
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setLabel(file.name.split(".")[0]); // Use filename as default label
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setLabel("");
+    resetProgress();
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !label.trim()) return;
+
+    try {
+      await uploadFile(selectedFile, groupId, label.trim(), description.trim());
+
+      // Reset form
+      setSelectedFile(null);
+      setLabel("");
+      setDescription("");
+      setOpen(false);
+      onUploadComplete?.();
+    } catch (error) {
+      // Error is handled by the hook
+    }
+  };
+
+  const handleClose = () => {
+    if (!isUploading) {
+      setOpen(false);
+      handleRemoveFile();
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button>
+          <Upload className="h-4 w-4 mr-2" />
+          Upload File
+        </Button>
+      </DialogTrigger>
+
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Upload File</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* File Selection */}
+          {!selectedFile ? (
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <FileIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <Label htmlFor="file-upload" className="cursor-pointer">
+                <span className="text-sm font-medium text-blue-600 hover:text-blue-500">
+                  Click to upload a file
+                </span>
+                <Input
+                  id="file-upload"
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                  accept="image/*,application/pdf,.doc,.docx"
+                  disabled={isUploading}
+                />
+              </Label>
+              <p className="text-xs text-gray-500 mt-2">
+                PNG, JPG, GIF, PDF up to 10MB
+              </p>
+            </div>
+          ) : (
+            /* Selected File Display */
+            <div className="border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <FileIcon className="h-8 w-8 text-blue-600" />
+                  <div>
+                    <p className="text-sm font-medium">{selectedFile.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                </div>
+                {!isUploading && (
+                  <Button variant="ghost" size="sm" onClick={handleRemoveFile}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Upload Progress */}
+              {uploadProgress.status === "uploading" && (
+                <div className="mt-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>Uploading...</span>
+                    <span>{uploadProgress.progress}%</span>
+                  </div>
+                  <Progress value={uploadProgress.progress} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Form Fields */}
+          {selectedFile && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="label">Label *</Label>
+                <Input
+                  id="label"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder="Enter file label"
+                  disabled={isUploading}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Enter file description (optional)"
+                  disabled={isUploading}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end space-x-2 pt-4">
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={isUploading}
+          >
+            Cancel
+          </Button>
+          {selectedFile && (
+            <Button
+              onClick={handleUpload}
+              disabled={!label.trim() || isUploading}
+            >
+              {isUploading ? "Uploading..." : "Upload"}
+            </Button>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+## File Management Operations
+
+### File Retrieval and Display
+
+```typescript
+// components/file/MediaCard.tsx
+"use client";
+
+import Image from "next/image";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  MoreHorizontal,
+  Download,
+  Edit,
+  Trash2,
+  ExternalLink,
+} from "lucide-react";
+
+type TMediaCardProps = {
+  media: {
+    id: string;
+    url: string;
+    label: string;
+    description?: string;
+    createdAt: Date;
+  };
+  onEdit?: (media: any) => void;
+  onDelete?: (mediaId: string) => void;
+};
+
+export function MediaCard({ media, onEdit, onDelete }: TMediaCardProps) {
+  const [imageError, setImageError] = useState(false);
+
+  const handleDownload = () => {
+    const link = document.createElement("a");
+    link.href = media.url;
+    link.download = media.label;
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleViewOnIPFS = () => {
+    const ipfsUrl = `https://ipfs.io/ipfs/${media.id}`;
+    window.open(ipfsUrl, "_blank");
+  };
+
+  return (
+    <Card className="group hover:shadow-lg transition-shadow">
+      <CardContent className="p-4">
+        {/* Media Preview */}
+        <div className="aspect-square relative mb-3 rounded-lg overflow-hidden bg-gray-100">
+          {!imageError ? (
+            <Image
+              src={media.url}
+              alt={media.label}
+              fill
+              className="object-cover"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <FileIcon className="h-12 w-12 text-gray-400" />
+            </div>
+          )}
+
+          {/* Overlay Actions */}
+          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-2">
+            <Button size="sm" variant="secondary" onClick={handleDownload}>
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant="secondary" onClick={handleViewOnIPFS}>
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Media Info */}
+        <div className="space-y-2">
+          <div className="flex items-start justify-between">
+            <h3 className="font-medium text-sm truncate">{media.label}</h3>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit?.(media)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownload}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleViewOnIPFS}>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  View on IPFS
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onDelete?.(media.id)}
+                  className="text-red-600"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {media.description && (
+            <p className="text-xs text-gray-500 truncate">
+              {media.description}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between">
+            <Badge variant="secondary" className="text-xs">
+              IPFS: {media.id.slice(0, 8)}...
+            </Badge>
+            <span className="text-xs text-gray-400">
+              {new Date(media.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### File Deletion
+
+```typescript
+// actions/deleteMediaAction.ts
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { auth } from "@clerk/nextjs/server";
+import { pinata } from "@/lib/pinata";
+import { db } from "@/db/drizzle";
+import { media } from "@/db/schema/media";
+import { eq } from "drizzle-orm";
+
+export async function deleteMediaAction(mediaId: string) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    // Get media info to verify ownership through group
+    const mediaItem = await db.query.media.findFirst({
+      where: eq(media.id, mediaId),
+      with: {
+        group: true,
+      },
+    });
+
+    if (!mediaItem) {
+      throw new Error("Media not found");
+    }
+
+    if (mediaItem.group.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+
+    // Delete from Pinata
+    try {
+      await pinata.unpin(mediaId);
+    } catch (error) {
+      console.warn("Failed to unpin from Pinata:", error);
+      // Continue with database deletion even if Pinata deletion fails
+    }
+
+    // Delete from database
+    await db.delete(media).where(eq(media.id, mediaId));
+
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("Delete error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Delete failed",
+    };
+  }
+}
+```
+
+## Advanced File Operations
+
+### Bulk File Operations
+
+```typescript
+// actions/bulkMediaActions.ts
+"use server";
+
+import { auth } from "@clerk/nextjs/server";
+import { pinata } from "@/lib/pinata";
+import { db } from "@/db/drizzle";
+import { media } from "@/db/schema/media";
+import { eq, inArray } from "drizzle-orm";
+
+export async function bulkDeleteMediaAction(mediaIds: string[]) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    // Verify ownership of all media items
+    const mediaItems = await db.query.media.findMany({
+      where: inArray(media.id, mediaIds),
+      with: {
+        group: true,
+      },
+    });
+
+    const unauthorizedItems = mediaItems.filter(
+      (item) => item.group.userId !== userId
+    );
+    if (unauthorizedItems.length > 0) {
+      throw new Error("Unauthorized access to some media items");
+    }
+
+    // Delete from Pinata (in parallel)
+    const unpinPromises = mediaIds.map(async (id) => {
+      try {
+        await pinata.unpin(id);
+      } catch (error) {
+        console.warn(`Failed to unpin ${id} from Pinata:`, error);
+      }
+    });
+
+    await Promise.allSettled(unpinPromises);
+
+    // Delete from database
+    await db.delete(media).where(inArray(media.id, mediaIds));
+
+    return {
+      success: true,
+      deletedCount: mediaIds.length,
+    };
+  } catch (error) {
+    console.error("Bulk delete error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Bulk delete failed",
+    };
+  }
+}
+
+export async function moveMediaToGroupAction(
+  mediaIds: string[],
+  targetGroupId: number
+) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    // Verify ownership and update
+    const result = await db
+      .update(media)
+      .set({
+        groupId: targetGroupId,
+        updatedAt: new Date(),
+      })
+      .where(inArray(media.id, mediaIds))
+      .returning();
+
+    return {
+      success: true,
+      movedCount: result.length,
+    };
+  } catch (error) {
+    console.error("Move media error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Move operation failed",
+    };
+  }
+}
+```
+
+### File Metadata Management
+
+```typescript
+// lib/pinata-metadata.ts
+import { pinata } from "./pinata";
+
+export async function updateFileMetadata(
+  ipfsHash: string,
+  metadata: {
+    name?: string;
+    keyvalues?: Record<string, string>;
+  }
+) {
+  try {
+    const result = await pinata.pinning.pinByHash(ipfsHash, {
+      metadata: {
+        name: metadata.name,
+        keyvalues: metadata.keyvalues,
+      },
+    });
+
+    return { success: true, result };
+  } catch (error) {
+    console.error("Metadata update error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Metadata update failed",
+    };
+  }
+}
+
+export async function getFileMetadata(ipfsHash: string) {
+  try {
+    const metadata = await pinata.pinning.list({
+      cid: ipfsHash,
+    });
+
+    return { success: true, metadata };
+  } catch (error) {
+    console.error("Metadata retrieval error:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Metadata retrieval failed",
+    };
+  }
+}
+```
+
+### File Optimization
+
+```typescript
+// lib/file-optimization.ts
+export function optimizeImageForUpload(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+
+    img.onload = () => {
+      // Calculate optimal dimensions
+      const maxWidth = 1920;
+      const maxHeight = 1080;
+
+      let { width, height } = img;
+
+      if (width > maxWidth || height > maxHeight) {
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width *= ratio;
+        height *= ratio;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      // Draw and compress
+      ctx?.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const optimizedFile = new File([blob], file.name, {
+              type: "image/webp",
+              lastModified: Date.now(),
+            });
+            resolve(optimizedFile);
+          } else {
+            reject(new Error("Failed to optimize image"));
+          }
+        },
+        "image/webp",
+        0.8 // Quality
+      );
+    };
+
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+```
+
+## Security & Performance
+
+### Access Control
+
+```typescript
+// lib/file-security.ts
+export function generateSecureGatewayUrl(
+  ipfsHash: string,
+  userId: string,
+  expiresIn: number = 3600 // 1 hour
+): string {
+  const timestamp = Date.now() + expiresIn * 1000;
+  const token = generateAccessToken(userId, ipfsHash, timestamp);
+
+  return `${gatewayConfig.baseUrl}/ipfs/${ipfsHash}?token=${token}&expires=${timestamp}`;
+}
+
+function generateAccessToken(
+  userId: string,
+  ipfsHash: string,
+  timestamp: number
+): string {
+  // In a real implementation, use a proper signing mechanism
+  const payload = `${userId}:${ipfsHash}:${timestamp}`;
+  return btoa(payload); // This should be properly signed in production
+}
+
+export function validateFileAccess(
+  userId: string,
+  mediaId: string
+): Promise<boolean> {
+  // Implement proper access validation
+  return db.query.media
+    .findFirst({
+      where: eq(media.id, mediaId),
+      with: {
+        group: true,
+      },
+    })
+    .then((mediaItem) => {
+      return mediaItem?.group.userId === userId;
+    });
+}
+```
+
+### Caching Strategy
+
+```typescript
+// lib/file-cache.ts
+export class FileCache {
+  private cache = new Map<string, { data: Blob; expires: number }>();
+
+  async get(ipfsHash: string): Promise<Blob | null> {
+    const cached = this.cache.get(ipfsHash);
+
+    if (cached && cached.expires > Date.now()) {
+      return cached.data;
+    }
+
+    this.cache.delete(ipfsHash);
+    return null;
+  }
+
+  set(ipfsHash: string, data: Blob, ttl: number = 3600000): void {
+    this.cache.set(ipfsHash, {
+      data,
+      expires: Date.now() + ttl,
+    });
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  // Cleanup expired entries
+  cleanup(): void {
+    const now = Date.now();
+    for (const [key, value] of this.cache.entries()) {
+      if (value.expires <= now) {
+        this.cache.delete(key);
+      }
+    }
+  }
+}
+
+export const fileCache = new FileCache();
+
+// Cleanup expired cache entries every 5 minutes
+setInterval(() => fileCache.cleanup(), 5 * 60 * 1000);
+```
+
+## Best Practices
+
+### File Management
+
+- Validate file types and sizes before upload
+- Implement proper error handling for network failures
+- Use optimistic updates for better UX
+- Implement file compression when appropriate
+- Store metadata efficiently
+
+### Security
+
+- Validate user permissions for file operations
+- Implement secure gateway URLs for sensitive files
+- Use proper authentication for Pinata operations
+- Sanitize file names and metadata
+- Implement rate limiting for uploads
+
+### Performance
+
+- Implement client-side file caching
+- Use CDN for frequently accessed files
+- Optimize images before upload
+- Implement lazy loading for file galleries
+- Use proper loading states
+
+### IPFS Best Practices
+
+- Pin important files to prevent garbage collection
+- Use descriptive metadata for better organization
+- Implement backup strategies for critical files
+- Monitor Pinata usage and costs
+- Use appropriate file naming conventions
+  description:
+  globs:
+  alwaysApply: false
+
+---

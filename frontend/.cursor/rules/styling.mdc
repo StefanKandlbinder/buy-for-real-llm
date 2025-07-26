@@ -1,0 +1,947 @@
+# Styling (Tailwind CSS + shadcn/ui) Rules
+
+## Core Configuration
+
+### Versions
+
+- **tailwindcss**: 4.x
+- **@tailwindcss/postcss**: 4.x
+- **shadcn/ui**: Latest registry components
+- **@radix-ui/react-\***: Latest primitives
+- **lucide-react**: 0.525.0
+- **class-variance-authority**: 0.7.1
+- **tailwind-merge**: 3.3.1
+- **clsx**: 2.1.1
+
+### Tailwind CSS v4 Configuration
+
+```typescript
+// tailwind.config.ts
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      fontFamily: {
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "monospace"],
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        "fade-out": {
+          "0%": { opacity: "1" },
+          "100%": { opacity: "0" },
+        },
+        "slide-in-from-top": {
+          "0%": { transform: "translateY(-100%)" },
+          "100%": { transform: "translateY(0)" },
+        },
+        "slide-in-from-bottom": {
+          "0%": { transform: "translateY(100%)" },
+          "100%": { transform: "translateY(0)" },
+        },
+        "slide-in-from-left": {
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(0)" },
+        },
+        "slide-in-from-right": {
+          "0%": { transform: "translateX(100%)" },
+          "100%": { transform: "translateX(0)" },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "fade-in": "fade-in 0.2s ease-out",
+        "fade-out": "fade-out 0.2s ease-out",
+        "slide-in-from-top": "slide-in-from-top 0.2s ease-out",
+        "slide-in-from-bottom": "slide-in-from-bottom 0.2s ease-out",
+        "slide-in-from-left": "slide-in-from-left 0.2s ease-out",
+        "slide-in-from-right": "slide-in-from-right 0.2s ease-out",
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;
+```
+
+### CSS Variables Setup
+
+```css
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 94.1%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+```
+
+### Utils Configuration
+
+```typescript
+// lib/utils.ts
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// Animation utilities
+export const fadeIn = "animate-fade-in";
+export const fadeOut = "animate-fade-out";
+export const slideInFromTop = "animate-slide-in-from-top";
+export const slideInFromBottom = "animate-slide-in-from-bottom";
+export const slideInFromLeft = "animate-slide-in-from-left";
+export const slideInFromRight = "animate-slide-in-from-right";
+
+// Common class combinations
+export const glassmorphism =
+  "backdrop-blur-md bg-opacity-10 border border-opacity-20";
+export const cardShadow = "shadow-lg shadow-black/5 dark:shadow-black/20";
+export const buttonShadow = "shadow-sm hover:shadow-md transition-shadow";
+```
+
+## shadcn/ui Integration
+
+### Component Installation
+
+```bash
+# Initialize shadcn/ui
+npx shadcn-ui@latest init
+
+# Add components as needed
+npx shadcn-ui@latest add button
+npx shadcn-ui@latest add card
+npx shadcn-ui@latest add dialog
+npx shadcn-ui@latest add dropdown-menu
+npx shadcn-ui@latest add form
+npx shadcn-ui@latest add input
+npx shadcn-ui@latest add label
+npx shadcn-ui@latest add select
+npx shadcn-ui@latest add separator
+npx shadcn-ui@latest add sheet
+npx shadcn-ui@latest add sidebar
+npx shadcn-ui@latest add skeleton
+npx shadcn-ui@latest add sonner
+npx shadcn-ui@latest add tooltip
+```
+
+### Button Component Example
+
+```typescript
+// components/ui/button.tsx
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+        outline:
+          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-md px-3 text-xs",
+        lg: "h-10 rounded-md px-8",
+        icon: "h-9 w-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+Button.displayName = "Button";
+
+export { Button, buttonVariants };
+```
+
+## Custom Component Patterns
+
+### Composite Component with CVA
+
+```typescript
+// components/ui/badge.tsx
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+
+const badgeVariants = cva(
+  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
+        outline: "text-foreground",
+        success:
+          "border-transparent bg-green-500 text-white shadow hover:bg-green-500/80",
+        warning:
+          "border-transparent bg-yellow-500 text-white shadow hover:bg-yellow-500/80",
+      },
+      size: {
+        sm: "px-1.5 py-0.5 text-xs",
+        default: "px-2.5 py-0.5 text-xs",
+        lg: "px-3 py-1 text-sm",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, size, ...props }: BadgeProps) {
+  return (
+    <div
+      className={cn(badgeVariants({ variant, size }), className)}
+      {...props}
+    />
+  );
+}
+
+export { Badge, badgeVariants };
+```
+
+### Layout Components
+
+```typescript
+// components/layout/container.tsx
+import { cn } from "@/lib/utils";
+
+type TContainerProps = {
+  children: React.ReactNode;
+  className?: string;
+  size?: "sm" | "md" | "lg" | "xl" | "full";
+};
+
+export function Container({
+  children,
+  className,
+  size = "lg",
+}: TContainerProps) {
+  return (
+    <div
+      className={cn(
+        "mx-auto px-4 sm:px-6 lg:px-8",
+        {
+          "max-w-2xl": size === "sm",
+          "max-w-4xl": size === "md",
+          "max-w-6xl": size === "lg",
+          "max-w-7xl": size === "xl",
+          "max-w-none": size === "full",
+        },
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// components/layout/stack.tsx
+type TStackProps = {
+  children: React.ReactNode;
+  className?: string;
+  gap?: "xs" | "sm" | "md" | "lg" | "xl";
+  direction?: "row" | "col";
+};
+
+export function Stack({
+  children,
+  className,
+  gap = "md",
+  direction = "col",
+}: TStackProps) {
+  return (
+    <div
+      className={cn(
+        "flex",
+        {
+          "flex-col": direction === "col",
+          "flex-row": direction === "row",
+          "gap-1": gap === "xs",
+          "gap-2": gap === "sm",
+          "gap-4": gap === "md",
+          "gap-6": gap === "lg",
+          "gap-8": gap === "xl",
+        },
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+// components/layout/grid.tsx
+type TGridProps = {
+  children: React.ReactNode;
+  className?: string;
+  cols?: 1 | 2 | 3 | 4 | 5 | 6;
+  gap?: "xs" | "sm" | "md" | "lg" | "xl";
+  responsive?: boolean;
+};
+
+export function Grid({
+  children,
+  className,
+  cols = 1,
+  gap = "md",
+  responsive = true,
+}: TGridProps) {
+  return (
+    <div
+      className={cn(
+        "grid",
+        {
+          "grid-cols-1": cols === 1,
+          "grid-cols-2": cols === 2,
+          "grid-cols-3": cols === 3,
+          "grid-cols-4": cols === 4,
+          "grid-cols-5": cols === 5,
+          "grid-cols-6": cols === 6,
+          "gap-1": gap === "xs",
+          "gap-2": gap === "sm",
+          "gap-4": gap === "md",
+          "gap-6": gap === "lg",
+          "gap-8": gap === "xl",
+        },
+        responsive && {
+          "sm:grid-cols-2": cols >= 2,
+          "md:grid-cols-3": cols >= 3,
+          "lg:grid-cols-4": cols >= 4,
+          "xl:grid-cols-5": cols >= 5,
+          "2xl:grid-cols-6": cols >= 6,
+        },
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+```
+
+## Dark Mode Implementation
+
+### Theme Provider
+
+```typescript
+// components/theme-provider.tsx
+"use client";
+
+import * as React from "react";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { type ThemeProviderProps } from "next-themes/dist/types";
+
+export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  return <NextThemesProvider {...props}>{children}</NextThemesProvider>;
+}
+
+// Usage in layout
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+### Theme Toggle Component
+
+```typescript
+// components/theme-toggle.tsx
+"use client";
+
+import * as React from "react";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+export function ThemeToggle() {
+  const { setTheme } = useTheme();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="icon">
+          <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setTheme("light")}>
+          Light
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("dark")}>
+          Dark
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("system")}>
+          System
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+```
+
+## Animation & Motion Patterns
+
+### Framer Motion Integration
+
+```typescript
+// components/ui/motion.tsx
+"use client";
+
+import { motion, type HTMLMotionProps } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+// Fade in animation
+type TFadeInProps = HTMLMotionProps<"div"> & {
+  delay?: number;
+  duration?: number;
+};
+
+export function FadeIn({
+  children,
+  className,
+  delay = 0,
+  duration = 0.3,
+  ...props
+}: TFadeInProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ delay, duration }}
+      className={className}
+      {...props}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+// Slide in animation
+type TSlideInProps = HTMLMotionProps<"div"> & {
+  direction?: "left" | "right" | "up" | "down";
+  delay?: number;
+  duration?: number;
+};
+
+export function SlideIn({
+  children,
+  className,
+  direction = "up",
+  delay = 0,
+  duration = 0.3,
+  ...props
+}: TSlideInProps) {
+  const directions = {
+    left: { x: -20, y: 0 },
+    right: { x: 20, y: 0 },
+    up: { x: 0, y: 20 },
+    down: { x: 0, y: -20 },
+  };
+
+  return (
+    <motion.div
+      initial={{
+        opacity: 0,
+        ...directions[direction],
+      }}
+      animate={{
+        opacity: 1,
+        x: 0,
+        y: 0,
+      }}
+      exit={{
+        opacity: 0,
+        ...directions[direction],
+      }}
+      transition={{ delay, duration }}
+      className={className}
+      {...props}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+// Stagger children animation
+type TStaggerProps = HTMLMotionProps<"div"> & {
+  stagger?: number;
+};
+
+export function Stagger({
+  children,
+  className,
+  stagger = 0.1,
+  ...props
+}: TStaggerProps) {
+  return (
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={{
+        hidden: { opacity: 0 },
+        visible: {
+          opacity: 1,
+          transition: {
+            staggerChildren: stagger,
+          },
+        },
+      }}
+      className={className}
+      {...props}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+export const staggerChild = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0 },
+};
+```
+
+### CSS-only Animations
+
+```css
+/* Custom CSS animations in globals.css */
+@layer utilities {
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-bounce-subtle {
+    animation: bounce-subtle 1s infinite;
+  }
+
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient 3s ease infinite;
+  }
+}
+
+@keyframes bounce-subtle {
+  0%,
+  100% {
+    transform: translateY(-2%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 5px theme("colors.primary.DEFAULT");
+  }
+  to {
+    box-shadow: 0 0 20px theme("colors.primary.DEFAULT");
+  }
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+```
+
+## Responsive Design Patterns
+
+### Breakpoint System
+
+```typescript
+// lib/breakpoints.ts
+export const breakpoints = {
+  sm: "640px",
+  md: "768px",
+  lg: "1024px",
+  xl: "1280px",
+  "2xl": "1536px",
+} as const;
+
+export type Breakpoint = keyof typeof breakpoints;
+
+// Hook for responsive behavior
+import { useState, useEffect } from "react";
+
+export function useBreakpoint(breakpoint: Breakpoint) {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const query = `(min-width: ${breakpoints[breakpoint]})`;
+    const media = window.matchMedia(query);
+
+    const updateMatch = () => setMatches(media.matches);
+    updateMatch();
+
+    media.addEventListener("change", updateMatch);
+    return () => media.removeEventListener("change", updateMatch);
+  }, [breakpoint]);
+
+  return matches;
+}
+
+// Responsive component wrapper
+type TResponsiveProps = {
+  children: React.ReactNode;
+  breakpoint: Breakpoint;
+  fallback?: React.ReactNode;
+};
+
+export function Responsive({
+  children,
+  breakpoint,
+  fallback = null,
+}: TResponsiveProps) {
+  const matches = useBreakpoint(breakpoint);
+  return matches ? <>{children}</> : <>{fallback}</>;
+}
+```
+
+### Mobile-First Components
+
+```typescript
+// components/ui/responsive-dialog.tsx
+"use client";
+
+import { useBreakpoint } from "@/lib/breakpoints";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+
+type TResponsiveDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  children: React.ReactNode;
+};
+
+export function ResponsiveDialog({
+  open,
+  onOpenChange,
+  title,
+  children,
+}: TResponsiveDialogProps) {
+  const isDesktop = useBreakpoint("md");
+
+  if (isDesktop) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+          </DialogHeader>
+          {children}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="h-[90vh]">
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+        </SheetHeader>
+        {children}
+      </SheetContent>
+    </Sheet>
+  );
+}
+```
+
+## Performance Optimizations
+
+### CSS Purging and Optimization
+
+```typescript
+// postcss.config.mjs
+export default {
+  plugins: {
+    "@tailwindcss/postcss": {},
+    autoprefixer: {},
+    ...(process.env.NODE_ENV === "production" && {
+      cssnano: {
+        preset: "default",
+      },
+    }),
+  },
+};
+```
+
+### Font Optimization
+
+```typescript
+// app/layout.tsx
+import { Inter, JetBrains_Mono } from "next/font/google";
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="font-sans antialiased">{children}</body>
+    </html>
+  );
+}
+```
+
+## Best Practices
+
+### Styling Guidelines
+
+- Use Tailwind utility classes over custom CSS
+- Implement consistent spacing with Tailwind's spacing scale
+- Use CSS variables for theming
+- Prefer flexbox and grid for layouts
+- Keep responsive design mobile-first
+
+### Component Design
+
+- Use shadcn/ui as base components
+- Implement consistent component APIs
+- Use CVA for component variants
+- Follow accessibility guidelines
+- Provide proper TypeScript types
+
+### Performance
+
+- Purge unused CSS in production
+- Optimize font loading with next/font
+- Use CSS-in-JS sparingly
+- Implement proper image optimization
+- Minimize animation complexity
+
+### Maintenance
+
+- Keep design tokens in CSS variables
+- Document custom component variants
+- Use consistent naming conventions
+- Regular audit of unused styles
+- Keep shadcn/ui components updated
+  description:
+  globs:
+  alwaysApply: false
+
+---

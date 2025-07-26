@@ -1,0 +1,324 @@
+# Next.js Framework Rules
+
+## Core Framework Configuration
+
+### Version
+
+- **Next.js**: 15.4.2 (App Router)
+- **Node.js**: 20.19.9+
+- **Package Manager**: pnpm
+
+### Next.js Configuration
+
+```typescript
+// next.config.ts
+const nextConfig = {
+  experimental: {
+    reactCompiler: {
+      enabled: true,
+      compilationMode:
+        process.env.NODE_ENV === "development" ? "annotation" : "infer",
+      panicThreshold: "all_errors",
+      sources: (filename) => filename.indexOf("node_modules") === -1,
+    },
+    turbo: {
+      rules: {
+        "*.ts": {
+          loaders: ["ts-loader"],
+        },
+      },
+    },
+  },
+  transpilePackages: ["react-compiler-runtime"],
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.pinata.cloud",
+        port: "",
+        pathname: "/**",
+      },
+    ],
+  },
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
+};
+
+export default nextConfig;
+```
+
+## App Router Patterns
+
+### Directory Structure
+
+```
+src/app/
+├── globals.css
+├── layout.tsx           # Root layout
+├── page.tsx            # Home page
+├── loading.tsx         # Global loading UI
+├── error.tsx           # Global error UI
+├── not-found.tsx       # 404 page
+├── api/
+│   └── trpc/
+│       └── [trpc]/
+│           └── route.ts # tRPC handler
+├── (dashboard)/        # Route groups
+│   ├── layout.tsx
+│   └── products/
+│       └── page.tsx
+└── [...slug]/         # Catch-all routes
+    └── page.tsx
+```
+
+### Server Components by Default
+
+```typescript
+// ✅ Server Component (default)
+export default async function Page() {
+  const data = await fetchData(); // Direct data fetching
+
+  return (
+    <div>
+      <h1>Server Component</h1>
+      <ClientComponent data={data} />
+    </div>
+  );
+}
+
+// ✅ Client Component (when needed)
+("use client");
+
+export function ClientComponent({ data }) {
+  const [state, setState] = useState(data);
+
+  return <div onClick={() => setState(newData)}>{state.title}</div>;
+}
+```
+
+### Layout Patterns
+
+```typescript
+// app/layout.tsx - Root Layout
+import { ClerkProvider } from "@clerk/nextjs";
+import { TRPCProvider } from "@/trpc/client/trpc-provider";
+import { QueryProvider } from "@/lib/query-provider";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ClerkProvider>
+      <html lang="en">
+        <body>
+          <QueryProvider>
+            <TRPCProvider>{children}</TRPCProvider>
+          </QueryProvider>
+        </body>
+      </html>
+    </ClerkProvider>
+  );
+}
+
+// app/(dashboard)/layout.tsx - Nested Layout
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex">
+      <Sidebar />
+      <main className="flex-1">{children}</main>
+    </div>
+  );
+}
+```
+
+### Data Fetching Patterns
+
+```typescript
+// ✅ Server Component Data Fetching
+export default async function ProductsPage() {
+  // Direct async/await in Server Components
+  const products = await db.select().from(productsTable);
+
+  return (
+    <div>
+      {products.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  );
+}
+
+// ✅ Client Component with React Query
+("use client");
+
+export function ProductsList() {
+  const { data: products, isLoading } = trpc.products.getAll.useQuery();
+
+  if (isLoading) return <ProductsSkeleton />;
+
+  return (
+    <div>
+      {products?.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  );
+}
+```
+
+### Error Handling
+
+```typescript
+// app/error.tsx - Global Error Boundary
+"use client";
+
+export default function Error({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      <h2>Something went wrong!</h2>
+      <button onClick={() => reset()}>Try again</button>
+    </div>
+  );
+}
+
+// app/products/error.tsx - Route-specific Error Boundary
+("use client");
+
+export default function ProductsError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return (
+    <div className="p-4 border border-red-200 rounded-md">
+      <h3>Failed to load products</h3>
+      <p>{error.message}</p>
+      <button onClick={() => reset()}>Retry</button>
+    </div>
+  );
+}
+```
+
+### Loading States
+
+```typescript
+// app/loading.tsx - Global Loading
+export default function Loading() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>
+  );
+}
+
+// app/products/loading.tsx - Route-specific Loading
+export default function ProductsLoading() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="h-48 bg-gray-200 animate-pulse rounded-lg" />
+      ))}
+    </div>
+  );
+}
+```
+
+### Metadata API
+
+```typescript
+// Static Metadata
+export const metadata = {
+  title: "Products",
+  description: "Browse our product catalog",
+};
+
+// Dynamic Metadata
+export async function generateMetadata({ params }: { params: { id: string } }) {
+  const product = await db
+    .select()
+    .from(productsTable)
+    .where(eq(productsTable.id, params.id));
+
+  return {
+    title: product?.name || "Product",
+    description: product?.description || "Product details",
+    openGraph: {
+      title: product?.name,
+      description: product?.description,
+      images: [product?.imageUrl],
+    },
+  };
+}
+```
+
+## Development Scripts
+
+```json
+{
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  }
+}
+```
+
+## Best Practices
+
+### Performance
+
+- Use Server Components by default
+- Minimize Client Component boundaries
+- Implement proper loading states
+- Use Next.js Image optimization
+- Enable Turbopack for development
+
+### SEO & Accessibility
+
+- Implement proper metadata
+- Use semantic HTML
+- Ensure proper heading hierarchy
+- Implement proper focus management
+
+### Code Organization
+
+- Keep Server Components at the top level
+- Move Client Components to leaf nodes
+- Use proper TypeScript types
+- Implement error boundaries at appropriate levels
+
+### Development Experience
+
+- Use Turbopack for faster development
+- Implement proper error handling
+- Use Next.js DevTools for debugging
+- Enable React Compiler for optimization
+  description:
+  globs:
+  alwaysApply: false
+
+---

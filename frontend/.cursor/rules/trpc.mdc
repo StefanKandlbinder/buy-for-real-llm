@@ -1,0 +1,655 @@
+# tRPC Rules
+
+## Core Configuration
+
+### Versions
+
+- **@trpc/client**: 11.4.3
+- **@trpc/server**: 11.4.3
+- **@trpc/next**: 11.4.3
+- **@trpc/react-query**: 11.4.3
+- **@trpc/tanstack-react-query**: 11.4.3
+
+### Server Setup
+
+```typescript
+// src/trpc/server/trpc.ts
+import { TRPCError, initTRPC } from "@trpc/server";
+import { type Context } from "./context";
+import superjson from "superjson";
+
+const t = initTRPC.context<Context>().create({
+  transformer: superjson,
+  errorFormatter({ shape, error }) {
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        zodError:
+          error.cause instanceof ZodError ? error.cause.flatten() : null,
+      },
+    };
+  },
+});
+
+export const router = t.router;
+export const middleware = t.middleware;
+
+// Public procedure
+export const publicProcedure = t.procedure;
+
+// Protected procedure
+export const protectedProcedure = t.procedure.use(
+  middleware(async ({ ctx, next }) => {
+    if (!ctx.auth?.userId) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+
+    return next({
+      ctx: {
+        ...ctx,
+        auth: ctx.auth,
+      },
+    });
+  })
+);
+```
+
+### Context Setup
+
+```typescript
+// src/trpc/server/context.ts
+import { type CreateNextContextOptions } from "@trpc/server/adapters/next";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/db/drizzle";
+
+export async function createTRPCContext(opts: CreateNextContextOptions) {
+  const authData = await auth();
+
+  return {
+    db,
+    auth: authData,
+    headers: opts.req.headers,
+  };
+}
+
+export type Context = Awaited<ReturnType<typeof createTRPCContext>>;
+```
+
+### Router Structure
+
+```typescript
+// src/trpc/server/index.ts
+import { router } from "./trpc";
+import { groupsRouter } from "./routers/groups/router";
+import { mediaRouter } from "./routers/media/router";
+
+export const appRouter = router({
+  groups: groupsRouter,
+  media: mediaRouter,
+});
+
+export type AppRouter = typeof appRouter;
+```
+
+### Client Setup
+
+```typescript
+// src/trpc/client/client.ts
+import { createTRPCContext } from "@trpc/tanstack-react-query";
+import { type AppRouter } from "@/trpc/server/index";
+
+export const { TRPCProvider, useTRPC, useTRPCClient } =
+  createTRPCContext<AppRouter>();
+```
+
+### Provider Configuration
+
+```typescript
+// src/trpc/client/trpc-provider.tsx
+"use client";
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { httpBatchLink } from "@trpc/client";
+import { createTRPCNext } from "@trpc/next";
+import { useState } from "react";
+import superjson from "superjson";
+import { type AppRouter } from "@/trpc/server";
+
+const getBaseUrl = () => {
+  if (typeof window !== "undefined") return ""; // browser should use relative url
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`; // SSR should use vercel url
+  return `http://localhost:${process.env.PORT ?? 3000}`; // dev SSR should use localhost
+};
+
+export const trpc = createTRPCNext<AppRouter>({
+  config() {
+    return {
+      transformer: superjson,
+      links: [
+        httpBatchLink({
+          url: `${getBaseUrl()}/api/trpc`,
+        }),
+      ],
+    };
+  },
+  ssr: false,
+});
+
+export function TRPCProvider({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient());
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <trpc.Provider client={trpc.createClient()} queryClient={queryClient}>
+        {children}
+      </trpc.Provider>
+    </QueryClientProvider>
+  );
+}
+```
+
+## Router Development Patterns
+
+### Router Structure
+
+```typescript
+// src/trpc/server/routers/[domain]/router.ts
+import { z } from "zod";
+import { router, protectedProcedure, publicProcedure } from "../../trpc";
+import { insertSchema, updateSchema } from "./validation";
+
+export const domainRouter = router({
+  // Query procedures
+  getAll: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(50),
+        cursor: z.string().nullish(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const items = await ctx.db
+        .select()
+        .from(table)
+        .limit(input.limit + 1);
+
+      let nextCursor: typeof input.cursor | undefined = undefined;
+      if (items.length > input.limit) {
+        const nextItem = items.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return {
+        items,
+        nextCursor,
+      };
+    }),
+
+  getById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const item = await ctx.db
+        .select()
+        .from(table)
+        .where(eq(table.id, input.id))
+        .limit(1);
+
+      if (!item[0]) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Item not found",
+        });
+      }
+
+      return item[0];
+    }),
+
+  // Mutation procedures
+  create: protectedProcedure
+    .input(insertSchema)
+    .mutation(async ({ ctx, input }) => {
+      const [newItem] = await ctx.db
+        .insert(table)
+        .values({
+          ...input,
+          userId: ctx.auth.userId,
+        })
+        .returning();
+
+      return newItem;
+    }),
+
+  update: protectedProcedure
+    .input(updateSchema)
+    .mutation(async ({ ctx, input }) => {
+      const [updatedItem] = await ctx.db
+        .update(table)
+        .set({ ...input, updatedAt: new Date() })
+        .where(eq(table.id, input.id))
+        .returning();
+
+      if (!updatedItem) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Item not found",
+        });
+      }
+
+      return updatedItem;
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.db.delete(table).where(eq(table.id, input.id));
+
+      return { success: true };
+    }),
+});
+```
+
+### Validation Schemas
+
+```typescript
+// src/trpc/server/routers/[domain]/validation.ts
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { z } from "zod";
+import { table } from "@/db/schema";
+
+// Base schemas from Drizzle
+export const selectSchema = createSelectSchema(table);
+export const insertSchema = createInsertSchema(table, {
+  // Override specific fields
+  email: z.string().email(),
+  age: z.number().min(0).max(150),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Update schema (partial with required id)
+export const updateSchema = z
+  .object({
+    id: z.string(),
+  })
+  .merge(insertSchema.partial());
+
+// Query schemas
+export const getByIdSchema = z.object({
+  id: z.string().min(1),
+});
+
+export const listSchema = z.object({
+  limit: z.number().min(1).max(100).default(10),
+  cursor: z.string().nullish(),
+  search: z.string().optional(),
+  filter: z.enum(["active", "inactive", "all"]).default("all"),
+});
+```
+
+## Client Usage Patterns
+
+### Basic Queries
+
+```typescript
+// Query data
+const { data, isLoading, error } = trpc.domain.getAll.useQuery({
+  limit: 10,
+});
+
+// Query with parameters
+const { data: item } = trpc.domain.getById.useQuery(
+  { id: "123" },
+  {
+    enabled: !!id, // Only run if id exists
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  }
+);
+
+// Infinite query
+const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  trpc.domain.getAll.useInfiniteQuery(
+    { limit: 10 },
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+    }
+  );
+```
+
+### Mutations with Optimistic Updates
+
+```typescript
+// Basic mutation
+const createMutation = trpc.domain.create.useMutation({
+  onSuccess: () => {
+    // Invalidate and refetch
+    utils.domain.getAll.invalidate();
+  },
+});
+
+// Optimistic update mutation
+const updateMutation = trpc.domain.update.useMutation({
+  onMutate: async (newData) => {
+    // Cancel outgoing refetches
+    await utils.domain.getAll.cancel();
+
+    // Snapshot the previous value
+    const previousData = utils.domain.getAll.getData();
+
+    // Optimistically update to the new value
+    utils.domain.getAll.setData(undefined, (old) =>
+      old?.map((item) =>
+        item.id === newData.id ? { ...item, ...newData } : item
+      )
+    );
+
+    return { previousData };
+  },
+  onError: (err, newData, context) => {
+    // Rollback to the previous value
+    utils.domain.getAll.setData(undefined, context?.previousData);
+  },
+  onSettled: () => {
+    // Always refetch after error or success
+    utils.domain.getAll.invalidate();
+  },
+});
+```
+
+### Server-Side Rendering
+
+```typescript
+// pages/index.tsx (if using pages router)
+import { createServerSideHelpers } from "@trpc/react-query/server";
+import { appRouter } from "@/trpc/server";
+import { createTRPCContext } from "@/trpc/server/context";
+
+export async function getServerSideProps(context: GetServerSidePropsContext) {
+  const helpers = createServerSideHelpers({
+    router: appRouter,
+    ctx: await createTRPCContext({
+      req: context.req,
+      res: context.res,
+    }),
+    transformer: superjson,
+  });
+
+  // Prefetch data
+  await helpers.domain.getAll.prefetch();
+
+  return {
+    props: {
+      trpcState: helpers.dehydrate(),
+    },
+  };
+}
+
+// app/page.tsx (App Router)
+import { appRouter } from "@/trpc/server";
+import { createTRPCContext } from "@/trpc/server/context";
+
+export default async function Page() {
+  const context = await createTRPCContext({
+    req: new Request("http://localhost:3000"),
+    res: new Response(),
+  });
+
+  const caller = appRouter.createCaller(context);
+  const data = await caller.domain.getAll();
+
+  return (
+    <div>
+      <ClientComponent initialData={data} />
+    </div>
+  );
+}
+```
+
+## Advanced Patterns
+
+### Middleware for Logging
+
+```typescript
+// src/trpc/server/middleware/logging.ts
+import { middleware } from "../trpc";
+
+export const loggingMiddleware = middleware(async ({ path, type, next }) => {
+  const start = Date.now();
+
+  const result = await next();
+
+  const durationMs = Date.now() - start;
+
+  console.log(`${type} ${path} - ${durationMs}ms`);
+
+  return result;
+});
+
+// Usage in procedures
+export const loggedProcedure = publicProcedure.use(loggingMiddleware);
+```
+
+### Input Validation Middleware
+
+```typescript
+// src/trpc/server/middleware/validation.ts
+export const rateLimitMiddleware = middleware(async ({ ctx, next }) => {
+  // Rate limiting logic
+  const userId = ctx.auth?.userId;
+  if (userId) {
+    const requests = await getRequestCount(userId);
+    if (requests > 100) {
+      throw new TRPCError({
+        code: "TOO_MANY_REQUESTS",
+        message: "Rate limit exceeded",
+      });
+    }
+  }
+
+  return next();
+});
+```
+
+### Subscription Support (WebSockets)
+
+```typescript
+// src/trpc/server/routers/subscriptions.ts
+import { observable } from "@trpc/server/observable";
+import { EventEmitter } from "events";
+
+const ee = new EventEmitter();
+
+export const subscriptionRouter = router({
+  onUpdate: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .subscription(async ({ input }) => {
+      return observable<{ id: string; data: any }>((emit) => {
+        const onUpdate = (data: any) => {
+          emit.next({ id: input.id, data });
+        };
+
+        ee.on(`update-${input.id}`, onUpdate);
+
+        return () => {
+          ee.off(`update-${input.id}`, onUpdate);
+        };
+      });
+    }),
+});
+```
+
+## Error Handling
+
+### Custom Error Types
+
+```typescript
+// src/lib/trpc-errors.ts
+import { TRPCError } from "@trpc/server";
+
+export class ValidationError extends TRPCError {
+  constructor(message: string, field?: string) {
+    super({
+      code: "BAD_REQUEST",
+      message,
+      cause: { field },
+    });
+  }
+}
+
+export class NotFoundError extends TRPCError {
+  constructor(resource: string, id: string) {
+    super({
+      code: "NOT_FOUND",
+      message: `${resource} with id ${id} not found`,
+    });
+  }
+}
+
+export class UnauthorizedError extends TRPCError {
+  constructor(action?: string) {
+    super({
+      code: "UNAUTHORIZED",
+      message: action ? `Unauthorized to ${action}` : "Unauthorized",
+    });
+  }
+}
+```
+
+### Client Error Handling
+
+```typescript
+// hooks/use-error-handler.ts
+import { TRPCClientError } from "@trpc/client";
+import { toast } from "sonner";
+
+export function useErrorHandler() {
+  return (error: unknown) => {
+    if (error instanceof TRPCClientError) {
+      switch (error.data?.code) {
+        case "UNAUTHORIZED":
+          toast.error("Please sign in to continue");
+          // Redirect to sign in
+          break;
+        case "FORBIDDEN":
+          toast.error("You do not have permission to perform this action");
+          break;
+        case "NOT_FOUND":
+          toast.error("The requested resource was not found");
+          break;
+        case "TOO_MANY_REQUESTS":
+          toast.error("Too many requests. Please try again later.");
+          break;
+        default:
+          toast.error(error.message || "An unexpected error occurred");
+      }
+    } else {
+      toast.error("An unexpected error occurred");
+    }
+  };
+}
+```
+
+## Performance Optimization
+
+### Request Batching
+
+```typescript
+// Automatic batching (enabled by default)
+const results = await Promise.all([
+  trpc.domain.getById.query({ id: "1" }),
+  trpc.domain.getById.query({ id: "2" }),
+  trpc.domain.getById.query({ id: "3" }),
+]);
+```
+
+### Caching Strategies
+
+```typescript
+// Query with custom cache time
+const { data } = trpc.domain.getAll.useQuery(
+  { limit: 10 },
+  {
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+  }
+);
+
+// Prefetch for better UX
+const utils = trpc.useUtils();
+
+const prefetchData = async () => {
+  await utils.domain.getById.prefetch({ id: "123" });
+};
+```
+
+## Testing Patterns
+
+### Router Testing
+
+```typescript
+// __tests__/routers/domain.test.ts
+import { appRouter } from "@/trpc/server";
+import { createTRPCMsw } from "msw-trpc";
+
+const trpcMsw = createTRPCMsw(appRouter);
+
+export const handlers = [
+  trpcMsw.domain.getAll.query((req, res, ctx) => {
+    return res(ctx.data([{ id: "1", name: "Test" }]));
+  }),
+];
+
+// Test the router directly
+describe("Domain Router", () => {
+  it("should get all items", async () => {
+    const caller = appRouter.createCaller({
+      db: mockDb,
+      auth: { userId: "test-user" },
+    });
+
+    const result = await caller.domain.getAll();
+    expect(result).toHaveLength(1);
+  });
+});
+```
+
+## Best Practices
+
+### API Design
+
+- Use consistent naming conventions
+- Group related procedures in routers
+- Implement proper input validation
+- Use TypeScript for type safety
+- Handle errors gracefully
+
+### Performance
+
+- Enable request batching
+- Use proper caching strategies
+- Implement pagination for large datasets
+- Use subscriptions for real-time updates
+- Monitor query performance
+
+### Security
+
+- Always validate inputs
+- Use protected procedures for sensitive operations
+- Implement rate limiting
+- Log security-relevant events
+- Handle authentication properly
+
+### Development
+
+- Use TypeScript throughout
+- Write tests for routers
+- Document API endpoints
+- Use proper error codes
+- Implement proper logging
+  description:
+  globs:
+  alwaysApply: false
+
+---

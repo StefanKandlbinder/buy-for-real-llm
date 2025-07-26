@@ -1,0 +1,662 @@
+# React Query (TanStack Query) Rules
+
+## Core Configuration
+
+### Versions
+
+- **@tanstack/react-query**: 5.83.0
+- **Integration**: with tRPC v11.4.3
+- **Strategy**: Optimistic updates as default pattern
+
+### Query Client Setup
+
+```typescript
+// lib/query-client.ts
+import { QueryClient } from "@tanstack/react-query";
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
+      retry: (failureCount, error) => {
+        // Don't retry on 4xx errors except 408 (timeout)
+        if (error instanceof Error && "status" in error) {
+          const status = (error as any).status;
+          if (status >= 400 && status < 500 && status !== 408) {
+            return false;
+          }
+        }
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    },
+    mutations: {
+      retry: false, // Don't retry mutations by default
+      onError: (error) => {
+        console.error("Mutation error:", error);
+        // Global error toast/notification
+      },
+    },
+  },
+});
+```
+
+### Provider Setup
+
+```typescript
+// app/layout.tsx or providers.tsx
+"use client";
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { useState } from "react";
+
+export function QueryProvider({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient());
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
+}
+```
+
+## Optimistic Updates - Core Patterns
+
+### Standard Optimistic Mutation Hook
+
+```typescript
+// hooks/use-optimistic-mutation.ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+type TOptimisticMutationOptions<TData, TVariables, TContext = unknown> = {
+  mutationFn: (variables: TVariables) => Promise<TData>;
+  queryKey: unknown[];
+  onMutate?: (variables: TVariables) => Promise<TContext> | TContext;
+  onSuccess?: (data: TData, variables: TVariables, context: TContext) => void;
+  onError?: (error: Error, variables: TVariables, context: TContext) => void;
+  successMessage?: string | ((data: TData, variables: TVariables) => string);
+  errorMessage?: string | ((error: Error, variables: TVariables) => string);
+  onSettled?: () => void;
+};
+
+export function useOptimisticMutation<TData, TVariables, TContext = unknown>({
+  mutationFn,
+  queryKey,
+  onMutate,
+  onSuccess,
+  onError,
+  successMessage,
+  errorMessage,
+  onSettled,
+}: TOptimisticMutationOptions<TData, TVariables, TContext>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn,
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches to prevent optimistic update conflicts
+      await queryClient.cancelQueries({ queryKey });
+
+      // Snapshot previous value for rollback
+      const previousData = queryClient.getQueryData(queryKey);
+
+      // Execute custom optimistic update
+      const context = await onMutate?.(variables);
+
+      return { previousData, context } as TContext & { previousData: unknown };
+    },
+    onSuccess: (data, variables, context) => {
+      // Show success message
+      if (successMessage) {
+        const message =
+          typeof successMessage === "function"
+            ? successMessage(data, variables)
+            : successMessage;
+        toast.success(message);
+      }
+
+      // Execute custom success handler
+      onSuccess?.(data, variables, context);
+    },
+    onError: (error, variables, context) => {
+      // Rollback optimistic update
+      if (context && "previousData" in context) {
+        queryClient.setQueryData(queryKey, (context as any).previousData);
+      }
+
+      // Show error message
+      if (errorMessage) {
+        const message =
+          typeof errorMessage === "function"
+            ? errorMessage(error, variables)
+            : errorMessage;
+        toast.error(message);
+      }
+
+      // Execute custom error handler
+      onError?.(error, variables, context);
+    },
+    onSettled: () => {
+      // Invalidate and refetch queries to ensure consistency
+      queryClient.invalidateQueries({ queryKey });
+      onSettled?.();
+    },
+  });
+}
+```
+
+### CRUD Operations Template
+
+```typescript
+// hooks/use-resource-mutations.ts (Template)
+import { useOptimisticMutation } from "./use-optimistic-mutation";
+import { resourceApi } from "@/lib/api/resource";
+
+export function useResourceMutations() {
+  const queryKey = ["resources"]; // Use centralized query keys
+
+  // CREATE with optimistic update
+  const createResource = useOptimisticMutation({
+    mutationFn: resourceApi.create,
+    queryKey,
+    onMutate: async (newResource) => {
+      const optimisticResource = {
+        id: `temp-${Date.now()}`,
+        ...newResource,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Optimistically add the new resource
+      queryClient.setQueryData(queryKey, (old: any[]) =>
+        old ? [...old, optimisticResource] : [optimisticResource]
+      );
+
+      return { optimisticId: optimisticResource.id };
+    },
+    onSuccess: (data, variables, context) => {
+      // Replace optimistic resource with real data
+      queryClient.setQueryData(
+        queryKey,
+        (old: any[]) =>
+          old?.map((resource) =>
+            resource.id === context.optimisticId ? data : resource
+          ) || []
+      );
+    },
+    successMessage: "Resource created successfully!",
+    errorMessage: "Failed to create resource",
+  });
+
+  // UPDATE with optimistic update
+  const updateResource = useOptimisticMutation({
+    mutationFn: resourceApi.update,
+    queryKey,
+    onMutate: async (updates) => {
+      // Optimistically update the resource
+      queryClient.setQueryData(
+        queryKey,
+        (old: any[]) =>
+          old?.map((resource) =>
+            resource.id === updates.id
+              ? { ...resource, ...updates, updatedAt: new Date() }
+              : resource
+          ) || []
+      );
+
+      return { resourceId: updates.id };
+    },
+    successMessage: "Resource updated successfully!",
+    errorMessage: "Failed to update resource",
+  });
+
+  // DELETE with optimistic update
+  const deleteResource = useOptimisticMutation({
+    mutationFn: resourceApi.delete,
+    queryKey,
+    onMutate: async (id: string) => {
+      // Optimistically remove the resource
+      queryClient.setQueryData(
+        queryKey,
+        (old: any[]) => old?.filter((resource) => resource.id !== id) || []
+      );
+
+      return { deletedId: id };
+    },
+    successMessage: "Resource deleted successfully!",
+    errorMessage: "Failed to delete resource",
+  });
+
+  return {
+    createResource,
+    updateResource,
+    deleteResource,
+  };
+}
+```
+
+### Infinite Query with Optimistic Updates
+
+```typescript
+// hooks/use-infinite-resources.ts
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
+
+export function useInfiniteResources() {
+  const queryClient = useQueryClient();
+
+  const infiniteQuery = useInfiniteQuery({
+    queryKey: ["resources", "infinite"],
+    queryFn: ({ pageParam = 0 }) =>
+      resourceApi.getInfinite({ page: pageParam, limit: 20 }),
+    getNextPageParam: (lastPage, pages) =>
+      lastPage.hasMore ? pages.length : undefined,
+    initialPageParam: 0,
+  });
+
+  const addResourceOptimistic = useMutation({
+    mutationFn: resourceApi.create,
+    onMutate: async (newResource) => {
+      await queryClient.cancelQueries({ queryKey: ["resources", "infinite"] });
+
+      const optimisticResource = {
+        id: `temp-${Date.now()}`,
+        ...newResource,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // Add to the first page optimistically
+      queryClient.setQueryData(["resources", "infinite"], (old) => {
+        if (!old) return undefined;
+
+        return {
+          ...old,
+          pages: old.pages.map((page, index) =>
+            index === 0
+              ? { ...page, data: [optimisticResource, ...page.data] }
+              : page
+          ),
+        };
+      });
+
+      return { optimisticResource };
+    },
+    onSuccess: (data, variables, context) => {
+      // Replace optimistic with real data
+      queryClient.setQueryData(["resources", "infinite"], (old) => {
+        if (!old) return undefined;
+
+        return {
+          ...old,
+          pages: old.pages.map((page, index) =>
+            index === 0
+              ? {
+                  ...page,
+                  data: page.data.map((resource) =>
+                    resource.id === context.optimisticResource.id
+                      ? data
+                      : resource
+                  ),
+                }
+              : page
+          ),
+        };
+      });
+    },
+    onError: (error, variables, context) => {
+      // Remove optimistic resource on error
+      queryClient.setQueryData(["resources", "infinite"], (old) => {
+        if (!old) return undefined;
+
+        return {
+          ...old,
+          pages: old.pages.map((page, index) =>
+            index === 0
+              ? {
+                  ...page,
+                  data: page.data.filter(
+                    (resource) => resource.id !== context?.optimisticResource.id
+                  ),
+                }
+              : page
+          ),
+        };
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["resources", "infinite"] });
+    },
+  });
+
+  return {
+    ...infiniteQuery,
+    addResource: addResourceOptimistic,
+  };
+}
+```
+
+## Query Key Management
+
+### Centralized Query Key Factory
+
+```typescript
+// lib/query-keys.ts
+export const queryKeys = {
+  // Resource-related queries
+  resources: {
+    all: ["resources"] as const,
+    lists: () => [...queryKeys.resources.all, "list"] as const,
+    list: (filters: string) =>
+      [...queryKeys.resources.lists(), { filters }] as const,
+    details: () => [...queryKeys.resources.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.resources.details(), id] as const,
+    infinite: (filters: string) =>
+      [...queryKeys.resources.all, "infinite", { filters }] as const,
+  },
+
+  // User-related queries
+  users: {
+    all: ["users"] as const,
+    lists: () => [...queryKeys.users.all, "list"] as const,
+    list: (filters: string) =>
+      [...queryKeys.users.lists(), { filters }] as const,
+    details: () => [...queryKeys.users.all, "detail"] as const,
+    detail: (id: string) => [...queryKeys.users.details(), id] as const,
+  },
+} as const;
+
+export type TQueryKeys = typeof queryKeys;
+```
+
+### Selective Query Invalidation
+
+```typescript
+// utils/query-invalidation.ts
+import { QueryClient } from "@tanstack/react-query";
+
+export const createSelectiveInvalidation = (queryClient: QueryClient) => {
+  return {
+    // Invalidate specific resource
+    invalidateResource: (id: string) => {
+      queryClient.invalidateQueries({
+        queryKey: ["resources", id],
+        exact: true,
+      });
+    },
+
+    // Invalidate resource lists but not individual resources
+    invalidateResourceLists: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["resources"],
+        predicate: (query) =>
+          query.queryKey.length === 1 ||
+          (query.queryKey.length === 2 && query.queryKey[1] === "infinite"),
+      });
+    },
+
+    // Invalidate everything resource-related
+    invalidateAllResources: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["resources"],
+      });
+    },
+
+    // Remove specific resource from cache
+    removeResource: (id: string) => {
+      queryClient.removeQueries({
+        queryKey: ["resources", id],
+      });
+    },
+  };
+};
+```
+
+## Error Recovery Patterns
+
+### Automatic Retry with Exponential Backoff
+
+```typescript
+// hooks/use-resilient-mutation.ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+type TResilientMutationOptions<TData, TVariables> = {
+  mutationFn: (variables: TVariables) => Promise<TData>;
+  maxRetries?: number;
+  retryDelay?: (attempt: number) => number;
+  shouldRetry?: (error: Error, attempt: number) => boolean;
+  onOptimisticUpdate?: (variables: TVariables) => void;
+  onOptimisticRollback?: (variables: TVariables) => void;
+};
+
+export function useResilientMutation<TData, TVariables>({
+  mutationFn,
+  maxRetries = 3,
+  retryDelay = (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+  shouldRetry = (error, attempt) => {
+    // Don't retry client errors (4xx) except timeouts
+    if ("status" in error) {
+      const status = (error as any).status;
+      if (status >= 400 && status < 500 && status !== 408) {
+        return false;
+      }
+    }
+    return attempt < maxRetries;
+  },
+  onOptimisticUpdate,
+  onOptimisticRollback,
+}: TResilientMutationOptions<TData, TVariables>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (variables: TVariables) => {
+      let lastError: Error;
+      let attempt = 0;
+
+      while (attempt <= maxRetries) {
+        try {
+          if (attempt === 0) {
+            // Apply optimistic update on first attempt
+            onOptimisticUpdate?.(variables);
+          }
+
+          return await mutationFn(variables);
+        } catch (error) {
+          lastError = error as Error;
+
+          if (!shouldRetry(lastError, attempt)) {
+            // Don't retry, rollback optimistic update
+            if (attempt === 0) {
+              onOptimisticRollback?.(variables);
+            }
+            throw lastError;
+          }
+
+          attempt++;
+
+          if (attempt <= maxRetries) {
+            await new Promise((resolve) =>
+              setTimeout(resolve, retryDelay(attempt - 1))
+            );
+          }
+        }
+      }
+
+      // All retries failed, rollback optimistic update
+      onOptimisticRollback?.(variables);
+      throw lastError!;
+    },
+  });
+}
+```
+
+## tRPC Integration Patterns
+
+### Optimistic tRPC Mutations
+
+```typescript
+// hooks/use-media-optimistic.ts
+import { useOptimisticMutation } from "./use-optimistic-mutation";
+import { useTRPC } from "@/trpc/client/client";
+import { uploadMediaAction } from "@/actions/mediaActions";
+
+export function useMediaOptimistic() {
+  const trpc = useTRPC();
+  const queryKey = trpc.groups.getNestedGroups.queryKey();
+
+  const createMutation = useOptimisticMutation({
+    mutationFn: uploadMediaAction,
+    queryKey,
+    onMutate: async (variables) => {
+      const file = variables.get("file") as File;
+      const groupId = Number(variables.get("groupId"));
+      const label = variables.get("label") as string;
+      const description = variables.get("description") as string;
+
+      // Optimistic update: Add temporary media item
+      const optimisticMedia = {
+        id: `temp-${Date.now()}`,
+        url: URL.createObjectURL(file),
+        label: label || file.name,
+        description: description || "",
+      };
+
+      queryClient.setQueryData(queryKey, (old) => {
+        if (!old) return old;
+
+        return old.map((group) => {
+          if (group.id === groupId) {
+            return {
+              ...group,
+              media: [...(group.media || []), optimisticMedia],
+            };
+          }
+          return group;
+        });
+      });
+
+      return { optimisticId: optimisticMedia.id, groupId };
+    },
+    onSuccess: (data, variables, context) => {
+      // Replace optimistic with real data
+      if (data && !("error" in data)) {
+        queryClient.setQueryData(queryKey, (old) => {
+          if (!old) return old;
+
+          return old.map((group) => {
+            if (group.id === context.groupId) {
+              return {
+                ...group,
+                media:
+                  group.media?.map((media) =>
+                    media.id === context.optimisticId
+                      ? {
+                          id: data.id,
+                          label: data.label || "",
+                          url: data.url,
+                          description: data.description || "",
+                        }
+                      : media
+                  ) || [],
+              };
+            }
+            return group;
+          });
+        });
+      }
+    },
+    successMessage: "Media uploaded successfully!",
+    errorMessage: "Failed to upload media",
+  });
+
+  return {
+    createMutation,
+  };
+}
+```
+
+## DevTools Integration
+
+```typescript
+// components/query-devtools.tsx
+"use client";
+
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { useState } from "react";
+
+export function QueryDevtools() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (process.env.NODE_ENV !== "development") {
+    return null;
+  }
+
+  return (
+    <>
+      <ReactQueryDevtools
+        initialIsOpen={isOpen}
+        buttonPosition="bottom-left"
+        position="bottom"
+        panelProps={{
+          style: {
+            zIndex: 99999,
+          },
+        }}
+      />
+
+      {/* Custom devtools toggle */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="fixed bottom-4 left-4 z-50 rounded bg-blue-500 px-2 py-1 text-white text-xs"
+        style={{
+          display: process.env.NODE_ENV === "development" ? "block" : "none",
+        }}
+      >
+        🔍 Query DevTools
+      </button>
+    </>
+  );
+}
+```
+
+## Best Practices
+
+### Mutation Guidelines
+
+1. **Always prefer optimistic updates** unless impossible due to technical constraints
+2. **Implement proper rollback mechanisms** for all optimistic updates
+3. **Use meaningful success/error messages** to provide user feedback
+4. **Cancel in-flight queries** before applying optimistic updates
+5. **Invalidate related queries** after mutations complete
+6. **Handle network failures gracefully** with retry logic when appropriate
+
+### Query Guidelines
+
+1. **Use centralized query key factories** for consistency
+2. **Implement proper stale time strategies** based on data characteristics
+3. **Prefetch data proactively** for better user experience
+4. **Use selective invalidation** to minimize unnecessary refetches
+5. **Implement proper error boundaries** for query failures
+6. **Monitor performance** with React Query DevTools
+
+### Performance Guidelines
+
+1. **Optimize query key structures** for efficient invalidation
+2. **Use query placeholders** for instant loading states
+3. **Implement proper caching strategies** based on data freshness requirements
+4. **Batch related mutations** when possible
+5. **Use suspense boundaries** appropriately for better UX
+6. **Monitor bundle size** impact of React Query features
+   description:
+   globs:
+   alwaysApply: false
+
+---

@@ -1,0 +1,490 @@
+# React 19 & React Compiler Rules
+
+## Core Configuration
+
+### Versions
+
+- **React**: 19.1.0
+- **React DOM**: 19.1.0
+- **React Compiler**: 19.1.0-rc.2 (babel-plugin-react-compiler)
+- **TypeScript**: 5.x
+
+### React Compiler Configuration
+
+```javascript
+// babel.config.js
+module.exports = {
+  presets: [
+    ["@babel/preset-react", { runtime: "automatic" }],
+    "@babel/preset-typescript",
+  ],
+  plugins: [
+    [
+      "babel-plugin-react-compiler",
+      {
+        target: "es2022",
+        sources: (filename) => filename.indexOf("node_modules") === -1,
+        panicThreshold: "all_errors",
+      },
+    ],
+  ],
+};
+```
+
+## React 19 New Features & Patterns
+
+### Automatic Memoization (React Compiler)
+
+```typescript
+// ❌ React 18 - Manual memoization required
+const ExpensiveComponent = React.memo(({ data, onUpdate }) => {
+  const processedData = useMemo(() => {
+    return data.map((item) => ({ ...item, processed: true }));
+  }, [data]);
+
+  const handleClick = useCallback(
+    (id) => {
+      onUpdate(id);
+    },
+    [onUpdate]
+  );
+
+  return (
+    <div>
+      {processedData.map((item) => (
+        <div key={item.id} onClick={() => handleClick(item.id)}>
+          {item.name}
+        </div>
+      ))}
+    </div>
+  );
+});
+
+// ✅ React 19 + Compiler - Automatic optimization
+const ExpensiveComponent = ({ data, onUpdate }) => {
+  // Compiler automatically optimizes these computations
+  const processedData = data.map((item) => ({ ...item, processed: true }));
+
+  const handleClick = (id) => {
+    onUpdate(id);
+  };
+
+  return (
+    <div>
+      {processedData.map((item) => (
+        <div key={item.id} onClick={() => handleClick(item.id)}>
+          {item.name}
+        </div>
+      ))}
+    </div>
+  );
+};
+```
+
+### Ref as Prop (No forwardRef Required)
+
+```typescript
+// ✅ React 19 - Direct ref prop usage
+type TInputProps = {
+  ref?: React.Ref<HTMLInputElement>;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+};
+
+const TextInput = ({ ref, label, value, onChange, className }: TInputProps) => {
+  return (
+    <div className="input-group">
+      <label htmlFor={label}>{label}</label>
+      <input
+        ref={ref}
+        id={label}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn("input-base", className)}
+      />
+    </div>
+  );
+};
+
+// Usage - No forwardRef wrapper needed
+const ParentComponent = () => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const focusInput = () => {
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div>
+      <TextInput
+        ref={inputRef}
+        label="Username"
+        value={username}
+        onChange={setUsername}
+      />
+      <button onClick={focusInput}>Focus Input</button>
+    </div>
+  );
+};
+```
+
+### Enhanced State Management
+
+```typescript
+// ✅ React 19 - Compiler automatically optimizes state updates
+const UserProfile = ({ userId }: { userId: string }) => {
+  const [user, setUser] = useState<TUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Compiler optimizes this effect automatically
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const userData = await api.getUser(userId);
+        setUser(userData);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [userId]); // Compiler optimizes dependency array
+
+  if (loading) return <LoadingSpinner />;
+  if (error) return <ErrorMessage message={error} />;
+  if (!user) return <NotFound />;
+
+  return <UserCard user={user} />;
+};
+```
+
+### Advanced Ref Patterns
+
+```typescript
+// ✅ Callback Refs (Enhanced Pattern)
+type TCallbackRefProps = {
+  onElementMount?: (element: HTMLElement) => void;
+  onElementUnmount?: (element: HTMLElement) => void;
+  children: React.ReactNode;
+};
+
+const CallbackRefComponent = ({
+  onElementMount,
+  onElementUnmount,
+  children,
+}: TCallbackRefProps) => {
+  const callbackRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node) {
+        onElementMount?.(node);
+        const observer = new ResizeObserver((entries) => {
+          // Handle resize
+        });
+        observer.observe(node);
+
+        return () => {
+          onElementUnmount?.(node);
+          observer.disconnect();
+        };
+      }
+    },
+    [onElementMount, onElementUnmount]
+  );
+
+  return (
+    <div ref={callbackRef} className="callback-ref-container">
+      {children}
+    </div>
+  );
+};
+
+// ✅ Custom Hook with Refs
+type TUseFocusReturn = {
+  ref: React.RefObject<HTMLElement>;
+  focus: () => void;
+  blur: () => void;
+  isFocused: boolean;
+};
+
+const useFocus = <T extends HTMLElement = HTMLElement>(): TUseFocusReturn => {
+  const ref = useRef<T>(null);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const focus = useCallback(() => {
+    ref.current?.focus();
+  }, []);
+
+  const blur = useCallback(() => {
+    ref.current?.blur();
+  }, []);
+
+  // Compiler optimizes this effect
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const handleFocus = () => setIsFocused(true);
+    const handleBlur = () => setIsFocused(false);
+
+    element.addEventListener("focus", handleFocus);
+    element.addEventListener("blur", handleBlur);
+
+    return () => {
+      element.removeEventListener("focus", handleFocus);
+      element.removeEventListener("blur", handleBlur);
+    };
+  }, []);
+
+  return { ref, focus, blur, isFocused };
+};
+```
+
+### Multiple Refs Pattern
+
+```typescript
+// ✅ React 19 - Multiple refs with compiler optimization
+type TMultiRefComponentProps = {
+  items: TItem[];
+  onItemClick: (item: TItem, element: HTMLElement) => void;
+};
+
+const MultiRefComponent = ({ items, onItemClick }: TMultiRefComponentProps) => {
+  const itemRefs = useRef<Map<string, HTMLElement>>(new Map());
+
+  const setItemRef = useCallback(
+    (id: string) => (element: HTMLElement | null) => {
+      if (element) {
+        itemRefs.current.set(id, element);
+      } else {
+        itemRefs.current.delete(id);
+      }
+    },
+    []
+  );
+
+  const handleItemClick = useCallback(
+    (item: TItem) => {
+      const element = itemRefs.current.get(item.id);
+      if (element) {
+        onItemClick(item, element);
+      }
+    },
+    [onItemClick]
+  );
+
+  return (
+    <div className="multi-ref-container">
+      {items.map((item) => (
+        <div
+          key={item.id}
+          ref={setItemRef(item.id)}
+          onClick={() => handleItemClick(item)}
+          className="item"
+        >
+          {item.name}
+        </div>
+      ))}
+    </div>
+  );
+};
+```
+
+## Component Development Patterns
+
+### Component Template
+
+```typescript
+import React, { useRef } from "react";
+import { cn } from "@/lib/utils";
+
+type TComponentProps = {
+  ref?: React.Ref<HTMLDivElement>;
+  className?: string;
+  children?: React.ReactNode;
+  variant?: "primary" | "secondary";
+  size?: "sm" | "md" | "lg";
+  onClick?: (event: React.MouseEvent) => void;
+};
+
+// ✅ React 19 - No forwardRef needed, direct ref prop
+const Component = ({
+  ref,
+  className,
+  children,
+  variant = "primary",
+  size = "md",
+  onClick,
+  ...props
+}: TComponentProps) => {
+  // Compiler automatically optimizes these computations
+  const baseClasses = "component-base";
+  const variantClasses = {
+    primary: "variant-primary",
+    secondary: "variant-secondary",
+  };
+  const sizeClasses = {
+    sm: "size-sm",
+    md: "size-md",
+    lg: "size-lg",
+  };
+
+  // No need for useCallback - compiler optimizes automatically
+  const handleClick = (event: React.MouseEvent) => {
+    onClick?.(event);
+  };
+
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        baseClasses,
+        variantClasses[variant],
+        sizeClasses[size],
+        className
+      )}
+      onClick={handleClick}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+};
+
+Component.displayName = "Component";
+
+export { Component };
+```
+
+### Custom Hooks Pattern
+
+```typescript
+// ✅ Custom Hook with automatic optimization
+type TUseToggleReturn = {
+  isOn: boolean;
+  toggle: () => void;
+  turnOn: () => void;
+  turnOff: () => void;
+};
+
+const useToggle = (initialState = false): TUseToggleReturn => {
+  const [isOn, setIsOn] = useState(initialState);
+
+  // Compiler optimizes these functions automatically
+  const toggle = () => setIsOn((prev) => !prev);
+  const turnOn = () => setIsOn(true);
+  const turnOff = () => setIsOn(false);
+
+  return {
+    isOn,
+    toggle,
+    turnOn,
+    turnOff,
+  };
+};
+
+// Usage
+const ToggleComponent = () => {
+  const { isOn, toggle, turnOn, turnOff } = useToggle();
+
+  return (
+    <div>
+      <p>Toggle is {isOn ? "ON" : "OFF"}</p>
+      <button onClick={toggle}>Toggle</button>
+      <button onClick={turnOn}>Turn On</button>
+      <button onClick={turnOff}>Turn Off</button>
+    </div>
+  );
+};
+```
+
+## Performance Guidelines
+
+### What the Compiler Handles Automatically
+
+- **Component Memoization**: Automatic React.memo equivalent
+- **Value Memoization**: Automatic useMemo equivalent
+- **Callback Memoization**: Automatic useCallback equivalent
+- **Dependency Optimization**: Smart effect dependencies
+- **Re-render Optimization**: Intelligent component updates
+
+### When to Still Use Manual Optimization
+
+- Complex computations the compiler can't infer
+- Third-party library integrations
+- WebGL or Canvas operations
+- Large data transformations
+- Specific performance edge cases identified through profiling
+
+### Performance Monitoring
+
+```typescript
+// lib/compiler-metrics.ts
+declare global {
+  interface Window {
+    __REACT_COMPILER_METRICS__?: {
+      optimizedComponents: Set<string>;
+      compilationErrors: Array<{ component: string; error: string }>;
+    };
+  }
+}
+
+export const trackCompilerOptimization = (componentName: string) => {
+  if (process.env.NODE_ENV === "development") {
+    if (!window.__REACT_COMPILER_METRICS__) {
+      window.__REACT_COMPILER_METRICS__ = {
+        optimizedComponents: new Set(),
+        compilationErrors: [],
+      };
+    }
+
+    window.__REACT_COMPILER_METRICS__.optimizedComponents.add(componentName);
+  }
+};
+```
+
+## React 19 Best Practices
+
+### Do's
+
+- ✅ Write clean, readable code - let the compiler optimize
+- ✅ Use direct ref props instead of forwardRef
+- ✅ Trust automatic memoization
+- ✅ Use functional components exclusively
+- ✅ Embrace automatic batching
+
+### Don'ts
+
+- ❌ Don't use manual useMemo/useCallback unless necessary
+- ❌ Don't use React.memo unless for specific edge cases
+- ❌ Don't use forwardRef for React 19 components
+- ❌ Don't prematurely optimize - let the compiler handle it
+- ❌ Don't ignore compiler warnings or errors
+
+### Code Patterns to Embrace
+
+- Use direct prop drilling when appropriate
+- Write simple, clear component logic
+- Leverage automatic state batching
+- Use callback refs for complex scenarios
+- Implement proper error boundaries
+
+### Migration from React 18
+
+1. Remove unnecessary React.memo wrappings
+2. Replace forwardRef with direct ref props
+3. Remove manual useMemo/useCallback optimizations
+4. Trust the compiler for performance
+5. Monitor compiler output in development
+   description:
+   globs:
+   alwaysApply: false
+
+---

@@ -1,247 +1,144 @@
----
-alwaysApply: true
----
+# Buy For Real - Next.js Project Rules (Overview)
 
-# Buy For Real - Next.js Project Rules
+This document serves as an overview of the technology-specific cursor rules for this Next.js application. Each technology has its own dedicated rules file for focused guidance.
 
-This document outlines the key architectural rules, conventions, and best practices for this Next.js application. Adhering to these rules is crucial for maintaining a clean, consistent, and scalable codebase.
+## Technology Stack Overview
 
-## 1. Core Technologies & Versions
+This project uses a modern, type-safe stack with the following core technologies:
 
-This project uses a modern, type-safe stack.
+- **Framework**: Next.js 15.4.2 (App Router) → See `framework.mdc`
+- **React**: 19.1.0 with React Compiler → See `react.mdc`
+- **API Layer**: tRPC v11.4.3 → See `trpc.mdc`
+- **Database**: PostgreSQL with Drizzle ORM 0.44.3 → See `database.mdc`
+- **Authentication**: Clerk 6.25.4 → See `authentication.mdc`
+- **State Management**: React Query 5.83.0 → See `react-query.mdc`
+- **Styling**: Tailwind CSS 4.x + shadcn/ui → See `styling.mdc`
+- **Validation**: Zod 4.0.5 → See `validation.mdc`
+- **File Storage**: Pinata IPFS 2.4.9 → See `file-storage.mdc`
 
-- **Framework**: Next.js 14+ (App Router)
-- **React**: React 18+ (with React Compiler enabled)
-- **API Layer**: tRPC v10
-- **Database**: PostgreSQL
-- **ORM**: Drizzle
-- **Authentication**: Clerk
-- **Styling**: Tailwind CSS
-- **UI Components**: shadcn/ui
-- **State Management**: React Query v5 (via tRPC)
-- **Schema Validation**: Zod
-- **File Storage**: Pinata (via IPFS)
-- **Deployment**: Vercel
-- **Package Manager**: pnpm
+## Architecture Philosophy
 
-## 2. API Layer: tRPC and Server Actions
+### API-First Design
 
-To ensure end-to-end type safety and a single, consistent API pattern, this project strictly uses tRPC for all database and server-side logic communication.
+- **Primary**: tRPC for all database and server-side logic
+- **Exception**: Next.js Server Actions for file uploads (multipart/form-data)
+- **Integration**: Server Actions use tRPC server-side caller for database operations
 
-- **DO NOT** use standard Next.js API Routes (`/app/api/**/route.ts`). The only exception is the tRPC handler itself at `/app/api/trpc/[trpc]/route.ts`.
-- **All** database interactions must be exposed through tRPC procedures.
+### Component Architecture
 
-### File Uploads
+- **Server Components**: Default for data fetching and rendering
+- **Client Components**: Only for interactivity (event handlers, hooks)
+- **Optimization**: React Compiler handles automatic memoization
 
-For operations requiring `multipart/form-data`, such as file uploads, the designated pattern is **Next.js Server Actions**.
+### Data Flow Pattern
 
-1.  Create the Server Action in the `/src/actions` directory.
-2.  The action must accept `FormData`.
-3.  Inside the action, perform the file upload to Pinata.
-4.  For subsequent database operations (e.g., saving the file URL and metadata), the action **must** use the server-side tRPC caller (`/src/trpc/server/server.ts`). This maintains a single source of truth for database logic.
-5.  Use `revalidatePath` or `revalidateTag` within the action to update the client-side cache.
-
-## 3. Database and Schema
-
-The project uses Drizzle ORM with a PostgreSQL database.
-
-- **Schema as Source of Truth**: The Drizzle schema files in `/src/db/schema/` are the definitive source for the database structure.
-- **Database Client**: The database client is configured in `/src/db/drizzle.ts`.
-- **Migration Generation**: Always generate migrations from schema changes using:
-  ```bash
-  pnpm db:generate
-  ```
-- **Applying Migrations**: Apply migrations to the database using:
-  ```bash
-  pnpm db:migrate
-  ```
-
-## 4. React Compiler & Performance Optimization
-
-This project uses the experimental **React Compiler**, enabled directly through the Next.js configuration (`next.config.ts`). The compiler automatically memoizes components and hooks, reducing the need for manual optimization with `useMemo`, `useCallback`, and `memo`.
-
-- **DO NOT** manually use `useMemo`, `useCallback`, or `React.memo`. Trust the compiler to handle optimization.
-- Write components and hooks as simple, plain JavaScript/TypeScript functions.
-- If the compiler causes issues with a specific component, you can opt out by adding the `"use no memo";` directive at the top of the component file. Use this sparingly and only as a last resort.
-
-### Ref as Prop (No `forwardRef` Required)
-
-With React 19 features, you can pass `ref` as a direct prop to your components without needing `forwardRef`.
-
-```typescript
-// ✅ React 19 Style - Direct ref prop usage
-type TInputProps = {
-  ref?: React.Ref<HTMLInputElement>;
-  label: string;
-  // ...other props
-};
-
-const TextInput = ({ ref, label, ...props }: TInputProps) => {
-  return (
-    <div>
-      <label>{label}</label>
-      <input ref={ref} {...props} />
-    </div>
-  );
-};
-
-// Usage
-const ParentComponent = () => {
-  const inputRef = useRef<HTMLInputElement>(null);
-  return <TextInput ref={inputRef} label="Username" />;
-};
+```
+Client → tRPC Query/Mutation → Server → Database
+                ↓
+Client ← Optimistic Updates ← React Query ← tRPC Response
 ```
 
-## 5. State Management
+## Development Workflow
 
-- **Server State**: Use React Query (via the tRPC client) for all server state management, including caching, refetching, and optimistic updates.
-- **Client State**: For simple, local component state, use `useState` or `useReducer`. Avoid introducing complex client-side state management libraries.
+### Getting Started
 
-## 6. Component Architecture
+```bash
+# Install dependencies
+pnpm install
 
-- **Server Components by Default**: Embrace the Next.js App Router paradigm. Use Server Components whenever possible to fetch data and render content on the server.
-- **Client Components for Interactivity**: Use the `"use client";` directive only for components that require interactivity (e.g., event handlers, hooks like `useState`, `useEffect`).
-- **Keep Client Components Small**: Isolate client-side interactivity into the smallest possible components (leaf components) to maximize the benefits of Server Components.
+# Set up environment variables (see individual .mdc files)
+cp .env.example .env.local
 
-## 7. Code Organization
+# Run database migrations
+pnpm db:migrate
 
-- **Server Actions**: `/src/actions`
-- **tRPC Routers**: `/src/trpc/server/routers` (organized by domain, each with its own `router.ts` and `validation.ts`)
-- **Database Schema**: `/src/db/schema` (organized by table)
-- **Drizzle Client**: `/src/db/drizzle.ts`
-- **Custom Hooks**: `/src/hooks` (organized by domain)
-- **UI Components**: `/src/components/ui` (for shadcn components) and `/src/components` for custom composite components.
-
-## 8. Authentication
-
-- Authentication is handled by **Clerk**.
-- The `auth` object from Clerk is available in the tRPC context for protecting procedures.
-- Use `<SignedIn>`, `<SignedOut>`, and `useUser()` for controlling UI elements on the client.
-
-## 9. Deployment
-
-- The application is configured for deployment on **Vercel**.
-- The `vercel.json` file contains configuration for headers and other platform settings.
-- Environment variables must be set in the Vercel project settings for production builds.
-
-# Buy For Real - Next.js Project Rules
-
-This document outlines the key architectural rules, conventions, and best practices for this Next.js application. Adhering to these rules is crucial for maintaining a clean, consistent, and scalable codebase.
-
-## 1. Core Technologies & Versions
-
-This project uses a modern, type-safe stack.
-
-- **Framework**: Next.js 14+ (App Router)
-- **React**: React 18+ (with React Compiler enabled)
-- **API Layer**: tRPC v10
-- **Database**: PostgreSQL
-- **ORM**: Drizzle
-- **Authentication**: Clerk
-- **Styling**: Tailwind CSS
-- **UI Components**: shadcn/ui
-- **State Management**: React Query v5 (via tRPC)
-- **Schema Validation**: Zod
-- **File Storage**: Pinata (via IPFS)
-- **Deployment**: Vercel
-- **Package Manager**: pnpm
-
-## 2. API Layer: tRPC and Server Actions
-
-To ensure end-to-end type safety and a single, consistent API pattern, this project strictly uses tRPC for all database and server-side logic communication.
-
-- **DO NOT** use standard Next.js API Routes (`/app/api/**/route.ts`). The only exception is the tRPC handler itself at `/app/api/trpc/[trpc]/route.ts`.
-- **All** database interactions must be exposed through tRPC procedures.
-
-### File Uploads
-
-For operations requiring `multipart/form-data`, such as file uploads, the designated pattern is **Next.js Server Actions**.
-
-1.  Create the Server Action in the `/src/actions` directory.
-2.  The action must accept `FormData`.
-3.  Inside the action, perform the file upload to Pinata.
-4.  For subsequent database operations (e.g., saving the file URL and metadata), the action **must** use the server-side tRPC caller (`/src/trpc/server/server.ts`). This maintains a single source of truth for database logic.
-5.  Use `revalidatePath` or `revalidateTag` within the action to update the client-side cache.
-
-## 3. Database and Schema
-
-The project uses Drizzle ORM with a PostgreSQL database.
-
-- **Schema as Source of Truth**: The Drizzle schema files in `/src/db/schema/` are the definitive source for the database structure.
-- **Database Client**: The database client is configured in `/src/db/drizzle.ts`.
-- **Migration Generation**: Always generate migrations from schema changes using:
-  ```bash
-  pnpm db:generate
-  ```
-- **Applying Migrations**: Apply migrations to the database using:
-  ```bash
-  pnpm db:migrate
-  ```
-
-## 4. React Compiler & Performance Optimization
-
-This project uses the experimental **React Compiler**, enabled directly through the Next.js configuration (`next.config.ts`). The compiler automatically memoizes components and hooks, reducing the need for manual optimization with `useMemo`, `useCallback`, and `memo`.
-
-- **DO NOT** manually use `useMemo`, `useCallback`, or `React.memo`. Trust the compiler to handle optimization.
-- Write components and hooks as simple, plain JavaScript/TypeScript functions.
-- If the compiler causes issues with a specific component, you can opt out by adding the `"use no memo";` directive at the top of the component file. Use this sparingly and only as a last resort.
-
-### Ref as Prop (No `forwardRef` Required)
-
-With React 19 features, you can pass `ref` as a direct prop to your components without needing `forwardRef`.
-
-```typescript
-// ✅ React 19 Style - Direct ref prop usage
-type TInputProps = {
-  ref?: React.Ref<HTMLInputElement>;
-  label: string;
-  // ...other props
-};
-
-const TextInput = ({ ref, label, ...props }: TInputProps) => {
-  return (
-    <div>
-      <label>{label}</label>
-      <input ref={ref} {...props} />
-    </div>
-  );
-};
-
-// Usage
-const ParentComponent = () => {
-  const inputRef = useRef<HTMLInputElement>(null);
-  return <TextInput ref={inputRef} label="Username" />;
-};
+# Start development server
+pnpm dev
 ```
 
-## 5. State Management
+### Code Generation & Type Safety
 
-- **Server State**: Use React Query (via the tRPC client) for all server state management, including caching, refetching, and optimistic updates.
-- **Client State**: For simple, local component state, use `useState` or `useReducer`. Avoid introducing complex client-side state management libraries.
+- Database schema generates tRPC types automatically
+- React Query provides client-side type safety
+- Zod schemas generate validation types
+- Full end-to-end type safety from DB → API → UI
 
-## 6. Component Architecture
+### Performance Strategy
 
-- **Server Components by Default**: Embrace the Next.js App Router paradigm. Use Server Components whenever possible to fetch data and render content on the server.
-- **Client Components for Interactivity**: Use the `"use client";` directive only for components that require interactivity (e.g., event handlers, hooks like `useState`, `useEffect`).
-- **Keep Client Components Small**: Isolate client-side interactivity into the smallest possible components (leaf components) to maximize the benefits of Server Components.
+- **Optimistic Updates**: Default for all mutations (React Query)
+- **Automatic Optimization**: React Compiler handles memoization
+- **Edge-First**: Vercel deployment with edge functions
+- **IPFS Storage**: Decentralized file storage via Pinata
 
-## 7. Code Organization
+## Quick Reference
 
-- **Server Actions**: `/src/actions`
-- **tRPC Routers**: `/src/trpc/server/routers` (organized by domain, each with its own `router.ts` and `validation.ts`)
-- **Database Schema**: `/src/db/schema` (organized by table)
-- **Drizzle Client**: `/src/db/drizzle.ts`
-- **Custom Hooks**: `/src/hooks` (organized by domain)
-- **UI Components**: `/src/components/ui` (for shadcn components) and `/src/components` for custom composite components.
+### File Organization
 
-## 8. Authentication
+```
+src/
+├── app/                 # Next.js App Router pages
+├── components/          # Reusable UI components
+├── hooks/              # Custom React hooks
+├── lib/               # Utility libraries and configurations
+├── trpc/              # tRPC server and client setup
+├── db/                # Database schema and client
+├── actions/           # Next.js Server Actions
+└── types/             # TypeScript type definitions
+```
 
-- Authentication is handled by **Clerk**.
-- The `auth` object from Clerk is available in the tRPC context for protecting procedures.
-- Use `<SignedIn>`, `<SignedOut>`, and `useUser()` for controlling UI elements on the client.
+### Key Patterns
 
-## 9. Deployment
+- **Mutations**: Always implement optimistic updates
+- **Components**: Use React 19 ref-as-prop pattern
+- **Validation**: Zod schemas with tRPC integration
+- **Authentication**: Clerk middleware protection
+- **Styling**: Tailwind utilities with shadcn/ui components
 
-- The application is configured for deployment on **Vercel**.
-- The `vercel.json` file contains configuration for headers and other platform settings.
-- Environment variables must be set in the Vercel project settings for production builds.
+### Development Rules
+
+1. **Type Safety First**: Use TypeScript throughout
+2. **Server Components Default**: Add 'use client' only when needed
+3. **Optimistic Updates**: Default pattern for all mutations
+4. **React Compiler**: Let it handle optimization automatically
+5. **tRPC Everything**: Use for all data operations except file uploads
+
+## Technology-Specific Guidance
+
+For detailed implementation guidance, refer to the technology-specific cursor rules files:
+
+- **`framework.mdc`** - Next.js App Router, SSR, routing patterns
+- **`react.mdc`** - React 19 features, component patterns, hooks
+- **`trpc.mdc`** - API routes, mutations, queries, validation
+- **`database.mdc`** - Drizzle ORM, schema design, queries
+- **`authentication.mdc`** - Clerk setup, middleware, protection
+- **`react-query.mdc`** - Optimistic updates, caching, state management
+- **`styling.mdc`** - Tailwind CSS, shadcn/ui, responsive design
+- **`validation.mdc`** - Zod schemas, form validation, error handling
+- **`file-storage.mdc`** - Pinata IPFS, file uploads, media management
+
+Each file contains comprehensive patterns, examples, and best practices specific to that technology.
+
+## Project Conventions
+
+### Naming
+
+- **Types**: Prefix with `T` (e.g., `TUser`, `TGroupSchema`)
+- **Components**: PascalCase (e.g., `UserProfile`, `MediaCard`)
+- **Hooks**: Prefix with `use` (e.g., `useAuth`, `useMedia`)
+- **Server Actions**: Suffix with `Action` (e.g., `uploadMediaAction`)
+
+### Code Style
+
+- **ESLint**: Configured with Next.js rules
+- **TypeScript**: Strict mode enabled
+- **Formatting**: Prettier integration
+- **Imports**: Absolute imports with `@/` prefix
+
+### Error Handling
+
+- **Client**: React Query error boundaries + toast notifications
+- **Server**: tRPC error formatting with proper status codes
+- **Validation**: Zod schema validation with user-friendly messages
+- **Files**: Graceful degradation with proper fallbacks
+
+This architecture ensures type safety, performance, and excellent developer experience while maintaining clean separation of concerns across all technology layers.

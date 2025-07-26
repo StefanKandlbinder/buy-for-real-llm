@@ -1,0 +1,790 @@
+# Validation (Zod) Rules
+
+## Core Configuration
+
+### Versions
+
+- **zod**: 4.0.5
+- **drizzle-zod**: 0.8.2
+- **@hookform/resolvers**: 5.1.1
+- **react-hook-form**: 7.60.0
+
+### Basic Schema Patterns
+
+```typescript
+// lib/validations/base.ts
+import { z } from "zod";
+
+// Common field validations
+export const commonValidations = {
+  id: z.string().min(1, "ID is required"),
+  uuid: z.string().uuid("Invalid UUID format"),
+  email: z.string().email("Invalid email format"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+    ),
+  url: z.string().url("Invalid URL format"),
+  slug: z
+    .string()
+    .min(1, "Slug is required")
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug can only contain lowercase letters, numbers, and hyphens"
+    ),
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format"),
+  dateString: z
+    .string()
+    .refine((date) => !isNaN(Date.parse(date)), "Invalid date format"),
+  positiveNumber: z.number().positive("Must be a positive number"),
+  nonEmptyString: z.string().min(1, "This field is required"),
+  optionalString: z.string().optional(),
+};
+
+// File validation
+export const fileValidation = {
+  image: z
+    .instanceof(File)
+    .refine(
+      (file) => file.size <= 5 * 1024 * 1024,
+      "File size must be less than 5MB"
+    )
+    .refine(
+      (file) =>
+        ["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(
+          file.type
+        ),
+      "Only JPEG, PNG, and WebP images are allowed"
+    ),
+  document: z
+    .instanceof(File)
+    .refine(
+      (file) => file.size <= 10 * 1024 * 1024,
+      "File size must be less than 10MB"
+    )
+    .refine(
+      (file) =>
+        [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ].includes(file.type),
+      "Only PDF and Word documents are allowed"
+    ),
+};
+```
+
+## Domain-Specific Schemas
+
+### User Validation Schemas
+
+```typescript
+// lib/validations/user.ts
+import { z } from "zod";
+import { commonValidations } from "./base";
+
+export const userProfileSchema = z.object({
+  firstName: commonValidations.nonEmptyString.max(
+    50,
+    "First name must be less than 50 characters"
+  ),
+  lastName: commonValidations.nonEmptyString.max(
+    50,
+    "Last name must be less than 50 characters"
+  ),
+  email: commonValidations.email,
+  bio: z.string().max(500, "Bio must be less than 500 characters").optional(),
+  avatar: fileValidation.image.optional(),
+  website: commonValidations.url.optional(),
+  phone: commonValidations.phone.optional(),
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: commonValidations.nonEmptyString,
+    newPassword: commonValidations.password,
+    confirmPassword: commonValidations.nonEmptyString,
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+export const signUpSchema = z
+  .object({
+    firstName: commonValidations.nonEmptyString.max(50),
+    lastName: commonValidations.nonEmptyString.max(50),
+    email: commonValidations.email,
+    password: commonValidations.password,
+    confirmPassword: commonValidations.nonEmptyString,
+    agreeToTerms: z.boolean().refine((val) => val === true, {
+      message: "You must agree to the terms and conditions",
+    }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+// Type inference
+export type TUserProfile = z.infer<typeof userProfileSchema>;
+export type TChangePassword = z.infer<typeof changePasswordSchema>;
+export type TSignUp = z.infer<typeof signUpSchema>;
+```
+
+### Media Validation Schemas
+
+```typescript
+// lib/validations/media.ts
+import { z } from "zod";
+import { commonValidations, fileValidation } from "./base";
+
+export const mediaUploadSchema = z.object({
+  file: fileValidation.image,
+  label: z
+    .string()
+    .min(1, "Label is required")
+    .max(255, "Label must be less than 255 characters"),
+  description: z
+    .string()
+    .max(1000, "Description must be less than 1000 characters")
+    .optional(),
+  groupId: z.number().int().positive("Invalid group ID"),
+  isPublic: z.boolean().default(false),
+  tags: z
+    .array(z.string().min(1).max(50))
+    .max(10, "Maximum 10 tags allowed")
+    .default([]),
+});
+
+export const mediaUpdateSchema = z.object({
+  id: commonValidations.nonEmptyString,
+  label: z
+    .string()
+    .min(1, "Label is required")
+    .max(255, "Label must be less than 255 characters")
+    .optional(),
+  description: z
+    .string()
+    .max(1000, "Description must be less than 1000 characters")
+    .optional(),
+  isPublic: z.boolean().optional(),
+  tags: z
+    .array(z.string().min(1).max(50))
+    .max(10, "Maximum 10 tags allowed")
+    .optional(),
+});
+
+export const mediaFilterSchema = z.object({
+  groupId: z.number().int().positive().optional(),
+  isPublic: z.boolean().optional(),
+  tags: z.array(z.string()).optional(),
+  dateFrom: z.string().datetime().optional(),
+  dateTo: z.string().datetime().optional(),
+  search: z.string().max(100).optional(),
+  limit: z.number().int().min(1).max(100).default(20),
+  offset: z.number().int().min(0).default(0),
+});
+
+// Bulk operations
+export const mediaBulkActionSchema = z
+  .object({
+    mediaIds: z
+      .array(commonValidations.nonEmptyString)
+      .min(1, "At least one media item must be selected"),
+    action: z.enum(["delete", "move", "publish", "unpublish"]),
+    targetGroupId: z.number().int().positive().optional(), // Required for 'move' action
+  })
+  .refine(
+    (data) => {
+      if (data.action === "move") {
+        return data.targetGroupId !== undefined;
+      }
+      return true;
+    },
+    {
+      message: "Target group is required for move action",
+      path: ["targetGroupId"],
+    }
+  );
+
+export type TMediaUpload = z.infer<typeof mediaUploadSchema>;
+export type TMediaUpdate = z.infer<typeof mediaUpdateSchema>;
+export type TMediaFilter = z.infer<typeof mediaFilterSchema>;
+export type TMediaBulkAction = z.infer<typeof mediaBulkActionSchema>;
+```
+
+### Group Validation Schemas
+
+```typescript
+// lib/validations/group.ts
+import { z } from "zod";
+import { commonValidations } from "./base";
+
+export const groupSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Group name is required")
+    .max(100, "Group name must be less than 100 characters")
+    .regex(
+      /^[a-zA-Z0-9\s\-_]+$/,
+      "Group name can only contain letters, numbers, spaces, hyphens, and underscores"
+    ),
+  description: z
+    .string()
+    .max(500, "Description must be less than 500 characters")
+    .optional(),
+  parentId: z.number().int().positive().optional(),
+  isPublic: z.boolean().default(false),
+  color: z
+    .string()
+    .regex(/^#[0-9A-F]{6}$/i, "Invalid color format")
+    .optional(),
+  icon: z.string().max(50).optional(),
+});
+
+export const groupUpdateSchema = groupSchema.partial().extend({
+  id: z.number().int().positive(),
+});
+
+export const groupMoveSchema = z
+  .object({
+    groupId: z.number().int().positive(),
+    newParentId: z.number().int().positive().optional(),
+  })
+  .refine((data) => data.groupId !== data.newParentId, {
+    message: "A group cannot be moved to itself",
+    path: ["newParentId"],
+  });
+
+// Nested validation to prevent circular references
+export const validateGroupHierarchy = (
+  groups: Array<{ id: number; parentId: number | null }>
+) => {
+  const findCircularReference = (
+    groupId: number,
+    visited: Set<number> = new Set()
+  ): boolean => {
+    if (visited.has(groupId)) return true;
+
+    visited.add(groupId);
+    const group = groups.find((g) => g.id === groupId);
+
+    if (group?.parentId) {
+      return findCircularReference(group.parentId, visited);
+    }
+
+    return false;
+  };
+
+  return groups.every((group) => !findCircularReference(group.id));
+};
+
+export type TGroup = z.infer<typeof groupSchema>;
+export type TGroupUpdate = z.infer<typeof groupUpdateSchema>;
+export type TGroupMove = z.infer<typeof groupMoveSchema>;
+```
+
+## Advanced Validation Patterns
+
+### Conditional Validation
+
+```typescript
+// lib/validations/conditional.ts
+import { z } from "zod";
+
+// Discriminated union for different form types
+export const createItemSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("text"),
+    content: z.string().min(1, "Text content is required"),
+    formatting: z
+      .object({
+        bold: z.boolean().default(false),
+        italic: z.boolean().default(false),
+        fontSize: z.number().min(8).max(72).default(14),
+      })
+      .optional(),
+  }),
+  z.object({
+    type: z.literal("image"),
+    file: fileValidation.image,
+    alt: z.string().min(1, "Alt text is required"),
+    caption: z.string().max(200).optional(),
+  }),
+  z.object({
+    type: z.literal("video"),
+    url: commonValidations.url,
+    thumbnail: fileValidation.image.optional(),
+    duration: z.number().positive().optional(),
+  }),
+]);
+
+// Conditional validation based on user role
+export const createPostSchema = z
+  .object({
+    title: commonValidations.nonEmptyString.max(200),
+    content: z.string().min(1, "Content is required"),
+    tags: z.array(z.string()).max(5),
+    publishedAt: z.string().datetime().optional(),
+    isDraft: z.boolean().default(true),
+    // Only admins can set featured posts
+    isFeatured: z.boolean().default(false),
+  })
+  .transform((data, ctx) => {
+    // This would be used with additional context about user permissions
+    return data;
+  });
+
+// Async validation for unique constraints
+export const createUniqueSlugSchema = (
+  checkSlugExists: (slug: string) => Promise<boolean>
+) =>
+  z
+    .object({
+      title: commonValidations.nonEmptyString,
+      slug: commonValidations.slug,
+    })
+    .refine(
+      async (data) => {
+        const exists = await checkSlugExists(data.slug);
+        return !exists;
+      },
+      {
+        message: "Slug already exists",
+        path: ["slug"],
+      }
+    );
+```
+
+### Form Validation with React Hook Form
+
+```typescript
+// hooks/use-form-validation.ts
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, type UseFormReturn } from "react-hook-form";
+import { z } from "zod";
+
+type TUseZodFormProps<T extends z.ZodType> = {
+  schema: T;
+  defaultValues?: Partial<z.infer<T>>;
+  mode?: "onSubmit" | "onBlur" | "onChange" | "onTouched" | "all";
+};
+
+export function useZodForm<T extends z.ZodType>({
+  schema,
+  defaultValues,
+  mode = "onSubmit",
+}: TUseZodFormProps<T>): UseFormReturn<z.infer<T>> {
+  return useForm<z.infer<T>>({
+    resolver: zodResolver(schema),
+    defaultValues,
+    mode,
+  });
+}
+
+// Example usage in component
+import { mediaUploadSchema } from "@/lib/validations/media";
+
+export function MediaUploadForm() {
+  const form = useZodForm({
+    schema: mediaUploadSchema,
+    defaultValues: {
+      label: "",
+      description: "",
+      isPublic: false,
+      tags: [],
+    },
+  });
+
+  const onSubmit = form.handleSubmit(async (data) => {
+    try {
+      await uploadMedia(data);
+      form.reset();
+    } catch (error) {
+      // Handle error
+    }
+  });
+
+  return (
+    <form onSubmit={onSubmit}>
+      <input {...form.register("label")} />
+      {form.formState.errors.label && (
+        <span>{form.formState.errors.label.message}</span>
+      )}
+      {/* More form fields */}
+    </form>
+  );
+}
+```
+
+### Server-Side Validation with tRPC
+
+```typescript
+// trpc/routers/media/validation.ts
+import { z } from "zod";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { media } from "@/db/schema/media";
+
+// Generate base schemas from Drizzle schema
+export const insertMediaSchema = createInsertSchema(media, {
+  url: z.string().url("Invalid URL format"),
+  label: z.string().min(1, "Label is required").max(255),
+  description: z.string().max(1000).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const selectMediaSchema = createSelectSchema(media);
+
+export const updateMediaSchema = z
+  .object({
+    id: z.string().min(1, "Media ID is required"),
+  })
+  .merge(insertMediaSchema.partial());
+
+// Query schemas
+export const getMediaSchema = z.object({
+  id: z.string().min(1, "Media ID is required"),
+});
+
+export const listMediaSchema = z.object({
+  groupId: z.number().int().positive().optional(),
+  limit: z.number().int().min(1).max(100).default(20),
+  cursor: z.string().optional(),
+  search: z.string().max(100).optional(),
+  tags: z.array(z.string()).optional(),
+});
+
+// Server action validation
+export const uploadMediaActionSchema = z.object({
+  file: z.instanceof(File),
+  groupId: z.string().transform((val) => parseInt(val, 10)),
+  label: z.string().min(1).max(255),
+  description: z.string().max(1000).optional(),
+});
+```
+
+## Error Handling & Custom Messages
+
+### Custom Error Messages
+
+```typescript
+// lib/validations/messages.ts
+import { z } from "zod";
+
+export const customErrorMap: z.ZodErrorMap = (issue, ctx) => {
+  switch (issue.code) {
+    case z.ZodIssueCode.invalid_type:
+      if (issue.expected === "string") {
+        return { message: "This field must be text" };
+      }
+      if (issue.expected === "number") {
+        return { message: "This field must be a number" };
+      }
+      break;
+    case z.ZodIssueCode.too_small:
+      if (issue.type === "string") {
+        return {
+          message: `This field must be at least ${issue.minimum} characters long`,
+        };
+      }
+      if (issue.type === "number") {
+        return { message: `This value must be at least ${issue.minimum}` };
+      }
+      break;
+    case z.ZodIssueCode.too_big:
+      if (issue.type === "string") {
+        return {
+          message: `This field must be no more than ${issue.maximum} characters long`,
+        };
+      }
+      if (issue.type === "number") {
+        return { message: `This value must be no more than ${issue.maximum}` };
+      }
+      break;
+    case z.ZodIssueCode.invalid_string:
+      if (issue.validation === "email") {
+        return { message: "Please enter a valid email address" };
+      }
+      if (issue.validation === "url") {
+        return { message: "Please enter a valid URL" };
+      }
+      break;
+  }
+  return { message: ctx.defaultError };
+};
+
+// Set global error map
+z.setErrorMap(customErrorMap);
+```
+
+### Validation Result Helpers
+
+```typescript
+// lib/validations/helpers.ts
+import { z } from "zod";
+
+export type ValidationResult<T> =
+  | {
+      success: true;
+      data: T;
+    }
+  | {
+      success: false;
+      errors: z.ZodError;
+      fieldErrors: Record<string, string[]>;
+    };
+
+export function validateSchema<T extends z.ZodType>(
+  schema: T,
+  data: unknown
+): ValidationResult<z.infer<T>> {
+  const result = schema.safeParse(data);
+
+  if (result.success) {
+    return {
+      success: true,
+      data: result.data,
+    };
+  }
+
+  return {
+    success: false,
+    errors: result.error,
+    fieldErrors: result.error.flatten().fieldErrors,
+  };
+}
+
+export function getFieldError(
+  fieldErrors: Record<string, string[]>,
+  fieldName: string
+): string | undefined {
+  return fieldErrors[fieldName]?.[0];
+}
+
+// Form error display component
+type TFormErrorProps = {
+  fieldErrors: Record<string, string[]>;
+  fieldName: string;
+};
+
+export function FormError({ fieldErrors, fieldName }: TFormErrorProps) {
+  const error = getFieldError(fieldErrors, fieldName);
+
+  if (!error) return null;
+
+  return (
+    <span className="text-sm text-red-600 dark:text-red-400">{error}</span>
+  );
+}
+```
+
+### Server Action Validation
+
+```typescript
+// lib/validations/server-actions.ts
+"use server";
+
+import { z } from "zod";
+import { redirect } from "next/navigation";
+import { validateSchema } from "./helpers";
+
+export async function validateServerAction<T extends z.ZodType>(
+  schema: T,
+  formData: FormData
+): Promise<z.infer<T>> {
+  const data = Object.fromEntries(formData.entries());
+
+  const validation = validateSchema(schema, data);
+
+  if (!validation.success) {
+    // In a real app, you might want to pass these errors back to the client
+    console.error("Validation failed:", validation.fieldErrors);
+    throw new Error("Validation failed");
+  }
+
+  return validation.data;
+}
+
+// Example server action with validation
+export async function createGroupAction(formData: FormData) {
+  const validatedData = await validateServerAction(groupSchema, formData);
+
+  // Proceed with the action using validated data
+  const group = await createGroup(validatedData);
+
+  redirect(`/groups/${group.id}`);
+}
+```
+
+## Testing Validation Schemas
+
+### Validation Test Helpers
+
+```typescript
+// lib/validations/__tests__/test-helpers.ts
+import { z } from "zod";
+
+export function expectValidationError<T extends z.ZodType>(
+  schema: T,
+  data: unknown,
+  expectedPath: string,
+  expectedMessage?: string
+) {
+  const result = schema.safeParse(data);
+
+  expect(result.success).toBe(false);
+
+  if (!result.success) {
+    const error = result.error.issues.find(
+      (issue) => issue.path.join(".") === expectedPath
+    );
+
+    expect(error).toBeDefined();
+
+    if (expectedMessage) {
+      expect(error?.message).toBe(expectedMessage);
+    }
+  }
+}
+
+export function expectValidationSuccess<T extends z.ZodType>(
+  schema: T,
+  data: unknown
+): z.infer<T> {
+  const result = schema.safeParse(data);
+
+  expect(result.success).toBe(true);
+
+  if (result.success) {
+    return result.data;
+  }
+
+  throw new Error("Validation failed");
+}
+```
+
+### Schema Tests
+
+```typescript
+// lib/validations/__tests__/user.test.ts
+import { userProfileSchema, changePasswordSchema } from "../user";
+import { expectValidationError, expectValidationSuccess } from "./test-helpers";
+
+describe("User Validation Schemas", () => {
+  describe("userProfileSchema", () => {
+    it("should validate valid user profile", () => {
+      const validData = {
+        firstName: "John",
+        lastName: "Doe",
+        email: "john@example.com",
+        bio: "Software developer",
+      };
+
+      expectValidationSuccess(userProfileSchema, validData);
+    });
+
+    it("should reject invalid email", () => {
+      const invalidData = {
+        firstName: "John",
+        lastName: "Doe",
+        email: "invalid-email",
+      };
+
+      expectValidationError(
+        userProfileSchema,
+        invalidData,
+        "email",
+        "Invalid email format"
+      );
+    });
+
+    it("should reject empty first name", () => {
+      const invalidData = {
+        firstName: "",
+        lastName: "Doe",
+        email: "john@example.com",
+      };
+
+      expectValidationError(
+        userProfileSchema,
+        invalidData,
+        "firstName",
+        "This field is required"
+      );
+    });
+  });
+
+  describe("changePasswordSchema", () => {
+    it("should validate matching passwords", () => {
+      const validData = {
+        currentPassword: "oldPassword123!",
+        newPassword: "NewPassword123!",
+        confirmPassword: "NewPassword123!",
+      };
+
+      expectValidationSuccess(changePasswordSchema, validData);
+    });
+
+    it("should reject mismatched passwords", () => {
+      const invalidData = {
+        currentPassword: "oldPassword123!",
+        newPassword: "NewPassword123!",
+        confirmPassword: "DifferentPassword123!",
+      };
+
+      expectValidationError(
+        changePasswordSchema,
+        invalidData,
+        "confirmPassword",
+        "Passwords do not match"
+      );
+    });
+  });
+});
+```
+
+## Best Practices
+
+### Schema Design
+
+- Use descriptive error messages
+- Create reusable validation patterns
+- Implement proper type inference
+- Use transforms for data normalization
+- Handle edge cases explicitly
+
+### Performance
+
+- Use `safeParse` for error handling
+- Implement lazy validation where possible
+- Cache compiled schemas
+- Use discriminated unions for complex types
+- Minimize nested validations
+
+### Developer Experience
+
+- Export TypeScript types from schemas
+- Provide clear error messages
+- Use consistent naming conventions
+- Document complex validation logic
+- Create validation test suites
+
+### Security
+
+- Validate all user inputs
+- Sanitize data after validation
+- Use strict validation by default
+- Handle file uploads carefully
+- Implement rate limiting for validation endpoints
+  description:
+  globs:
+  alwaysApply: false
+
+---
