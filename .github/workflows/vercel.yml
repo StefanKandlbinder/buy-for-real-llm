@@ -1,15 +1,5 @@
 name: Vercel Production Deployment
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-  DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  PINATA_API_KEY: ${{ secrets.PINATA_API_KEY }}
-  PINATA_API_SECRET: ${{ secrets.PINATA_API_SECRET }}
-  PINATA_JWT: ${{ secrets.PINATA_JWT }}
-  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_key }}
-  CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-
 on:
   push:
     branches:
