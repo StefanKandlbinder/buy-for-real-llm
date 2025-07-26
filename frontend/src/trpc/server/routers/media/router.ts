@@ -4,6 +4,35 @@ import { media } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 import { insertMediaSchema, updateMediaSchema } from "./validation";
+import { pinata } from "@/lib/config";
+
+// Helper to delete images from Pinata and return status
+export async function deleteImagesFromPinata(imageIds: string[]) {
+  let result = null;
+  let error = null;
+  let message = null;
+  let allSucceeded = true;
+  if (imageIds.length > 0) {
+    try {
+      result = await pinata.files.public.delete(imageIds);
+      if (Array.isArray(result)) {
+        const failed = result.filter((res) => res.status !== "OK");
+        if (failed.length > 0) {
+          allSucceeded = false;
+          message =
+            "Some images could not be deleted from Pinata. Group was not deleted. Please try again or check your Pinata dashboard.";
+        }
+      }
+    } catch (err) {
+      error = err;
+      allSucceeded = false;
+      message =
+        "Failed to delete images from Pinata. Group was not deleted. Please try again or check your Pinata dashboard.";
+      console.error("Failed to delete images from Pinata", err);
+    }
+  }
+  return { allSucceeded, result, error, message };
+}
 
 export const mediaRouter = router({
   // Procedure to create an image record in the database after upload

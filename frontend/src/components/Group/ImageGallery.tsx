@@ -37,6 +37,7 @@ export function ImageGallery() {
           group={group}
           allGroups={groups ?? []}
           deleteGroupMutation={(values) => deleteGroupMutation.mutate(values)}
+          createGroupMutation={(values) => createGroupMutation.mutate(values)}
         />
       ))}
     </div>

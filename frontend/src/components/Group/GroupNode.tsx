@@ -11,24 +11,35 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { AddGroupDialog } from "./AddGroupDialog";
 
 export function GroupNode({
   group,
   allGroups,
   deleteGroupMutation,
+  createGroupMutation,
 }: {
   group: NestedGroup;
   allGroups: NestedGroup[];
   deleteGroupMutation: (value: { id: number }) => void;
+  createGroupMutation: (values: any) => void;
 }) {
   const childGroups = allGroups.filter((g) => g.parent_id === group.id);
 
   return (
     <Card className="mt-4">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap">
         <CardTitle>{group.name}</CardTitle>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <AddFileDialog group={group} />
+          <AddGroupDialog
+            groups={allGroups}
+            createGroupMutation={(values) =>
+              createGroupMutation({ ...values, parentId: group.id })
+            }
+            triggerButton={<Button size="sm">Add Group</Button>}
+            defaultParentId={group.id}
+          />
           <Button
             variant="destructive"
             size="sm"
@@ -77,6 +88,7 @@ export function GroupNode({
             group={child}
             allGroups={allGroups}
             deleteGroupMutation={deleteGroupMutation}
+            createGroupMutation={createGroupMutation}
           />
         ))}
       </CardContent>

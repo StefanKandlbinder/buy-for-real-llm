@@ -3,36 +3,8 @@ import { protectedProcedure, router } from "@/trpc/server/trpc";
 import { groups, media } from "@/db/schema";
 import { eq, sql, inArray } from "drizzle-orm";
 import { insertGroupSchema, updateGroupSchema } from "./validation";
-import { pinata } from "@/lib/config";
 import { Context } from "@/trpc/server/context";
-
-// Helper to delete images from Pinata and return status
-async function deleteImagesFromPinata(imageIds: string[]) {
-  let result = null;
-  let error = null;
-  let message = null;
-  let allSucceeded = true;
-  if (imageIds.length > 0) {
-    try {
-      result = await pinata.files.public.delete(imageIds);
-      if (Array.isArray(result)) {
-        const failed = result.filter((res) => res.status !== "OK");
-        if (failed.length > 0) {
-          allSucceeded = false;
-          message =
-            "Some images could not be deleted from Pinata. Group was not deleted. Please try again or check your Pinata dashboard.";
-        }
-      }
-    } catch (err) {
-      error = err;
-      allSucceeded = false;
-      message =
-        "Failed to delete images from Pinata. Group was not deleted. Please try again or check your Pinata dashboard.";
-      console.error("Failed to delete images from Pinata", err);
-    }
-  }
-  return { allSucceeded, result, error, message };
-}
+import { deleteImagesFromPinata } from "../media/router";
 
 // Helper to recursively collect all child group IDs
 async function getAllChildGroupIds(
