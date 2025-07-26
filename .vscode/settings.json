@@ -1,0 +1,14 @@
+{
+  "eslint.enable": true,
+  "eslint.useFlatConfig": true,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.useESLintClass": true,
+  "eslint.debug": false,
+  "eslint.format.enable": true,
+  "eslint.lintTask.enable": true
+}

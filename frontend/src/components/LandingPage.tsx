@@ -1,7 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
+// import { api } from "@/trpc/server/server";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // const images = await api.media.getImagesByGroup({ groupId: 33 });
+  // console.log(images);
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="px-4 lg:px-6 h-14 flex items-center">
