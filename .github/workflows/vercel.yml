@@ -66,6 +66,11 @@ jobs:
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
+      - name: Debug Environment
+        run: |
+          echo "DATABASE_URL length: ${#DATABASE_URL}"
+          echo "DATABASE_URL starts with: ${DATABASE_URL:0:10}"
+
       - name: Build Project
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
