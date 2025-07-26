@@ -25,7 +25,7 @@ import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 const products = [
   {
     title: "Images",
-    url: "/products",
+    url: "/admin/products",
     icon: Image,
   },
 ];
@@ -33,7 +33,7 @@ const products = [
 const ads = [
   {
     title: "video",
-    url: "/ads",
+    url: "/admin/ads",
     icon: Video,
   },
 ];
