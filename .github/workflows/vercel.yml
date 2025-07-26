@@ -65,15 +65,6 @@ jobs:
 
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          PINATA_API_KEY: ${{ secrets.PINATA_API_KEY }}
-          PINATA_API_SECRET: ${{ secrets.PINATA_API_SECRET }}
-          PINATA_JWT: ${{ secrets.PINATA_JWT }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_key }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
 
       - name: Build Project
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
