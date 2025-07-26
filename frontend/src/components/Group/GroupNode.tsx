@@ -12,6 +12,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { AddGroupDialog } from "./AddGroupDialog";
+import { insertGroupSchema } from "@/trpc/server/routers/groups/validation";
+import { z } from "zod";
 
 export function GroupNode({
   group,
@@ -22,7 +24,7 @@ export function GroupNode({
   group: NestedGroup;
   allGroups: NestedGroup[];
   deleteGroupMutation: (value: { id: number }) => void;
-  createGroupMutation: (values: any) => void;
+  createGroupMutation: (values: z.infer<typeof insertGroupSchema>) => void;
 }) {
   const childGroups = allGroups.filter((g) => g.parent_id === group.id);
 
@@ -30,7 +32,7 @@ export function GroupNode({
     <Card className="mt-4">
       <CardHeader className="flex flex-row items-center justify-between flex-wrap">
         <CardTitle>{group.name}</CardTitle>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2">
           <AddFileDialog group={group} />
           <AddGroupDialog
             groups={allGroups}
