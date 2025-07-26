@@ -67,4 +67,15 @@ export const mediaRouter = router({
       await ctx.db.delete(media).where(eq(media.id, input.id));
       return { success: true };
     }),
+
+  // Procedure to get all images in a group
+  getImagesByGroup: protectedProcedure
+    .input(z.object({ groupId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const images = await ctx.db
+        .select()
+        .from(media)
+        .where(eq(media.groupId, input.groupId));
+      return images;
+    }),
 });
