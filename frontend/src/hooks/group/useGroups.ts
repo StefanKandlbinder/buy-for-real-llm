@@ -4,7 +4,7 @@ import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { toast } from "sonner";
 import { useAsyncErrorHandler } from "@/components/Error/ErrorProvider";
 
-export function useGroups() {
+export function useGroups(initialData?: NestedGroup[]) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
@@ -13,6 +13,7 @@ export function useGroups() {
   const groupsQuery = useQuery(
     trpc.groups.getNestedGroups.queryOptions(undefined, {
       refetchOnWindowFocus: false,
+      initialData,
     })
   );
 

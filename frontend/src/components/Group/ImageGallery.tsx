@@ -4,11 +4,17 @@ import { GroupNode } from "./GroupNode";
 import { AddGroupDialog } from "./AddGroupDialog";
 import { useGroups } from "@/hooks/group/useGroups";
 import { Skeleton } from "../ui/skeleton";
+import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
-export function ImageGallery() {
+interface ImageGalleryProps {
+  initialData?: NestedGroup[];
+}
+
+export function ImageGallery({ initialData }: ImageGalleryProps) {
   const { groups, createGroupMutation, deleteGroupMutation, groupsQuery } =
-    useGroups();
+    useGroups(initialData);
   const rootGroups = groups?.filter((g) => g.parent_id === null) ?? [];
+
   if (groupsQuery.isLoading) {
     return (
       <div className="flex flex-col space-y-4">
