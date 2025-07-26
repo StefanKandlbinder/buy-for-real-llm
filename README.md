@@ -1,12 +1,15 @@
 # Buy For Real
 
-Buy For Real is a full-stack application that leverages object detection to identify products from user-uploaded images. Users can organize these images into groups, and the backend is powered by a Python-based object detection model.
+Buy For Real is a full-stack application designed to provide a foundation for building an object-detection-powered e-commerce platform. The frontend allows users to upload images and organize them into hierarchical groups. The backend provides a standalone object detection API using the Qwen-VL-Max model.
+
+**Note:** The frontend and backend are not fully integrated. The image upload feature in the frontend does not currently trigger the object detection service in the backend.
 
 ## Features
 
-- **Image Upload and Object Detection:** Upload images and have the system automatically detect and identify products within them.
-- **Hierarchical Organization:** Organize your uploaded media into nested groups or folders for better management.
+- **Image Upload and Management:** Upload images and organize them into nested groups or folders.
+- **Hierarchical Organization:** A flexible grouping system for managing media.
 - **User Authentication:** Secure user authentication handled by Clerk.
+- **Standalone Object Detection API:** A Python-based API that can identify products from an image.
 - **Modern Tech Stack:** Built with Next.js for the frontend and a Python backend, ensuring a robust and scalable application.
 
 ## Tech Stack
@@ -20,11 +23,12 @@ Buy For Real is a full-stack application that leverages object detection to iden
 - **Database ORM:** [Drizzle ORM](https://orm.drizzle.team/)
 - **Authentication:** [Clerk](https://clerk.com/)
 - **State Management:** [React Query](https://tanstack.com/query/v4)
+- **File Storage:** [Pinata](https://www.pinata.cloud/)
 
 ### Backend
 
 - **Framework:** [FastAPI](https://fastapi.tiangolo.com/)
-- **Object Detection:** [Qwen-VL-Max](https://huggingface.co/Qwen/Qwen-VL-Max)
+- **Object Detection:** [Qwen-VL-Max](https://huggingface.co/Qwen/Qwen-VL-Max) via [MLX](https://github.com/ml-explore/mlx)
 - **Dependency Management:** [Poetry](https://python-poetry.org/)
 
 ## Getting Started
@@ -33,8 +37,8 @@ To get a local copy up and running, follow these simple steps.
 
 ### Prerequisites
 
-- Node.js and npm (or yarn/pnpm/bun)
-- Python 3.8+ and Poetry
+- Node.js and pnpm
+- Python 3.10+ and Poetry
 - PostgreSQL database
 
 ### Installation
@@ -50,17 +54,17 @@ To get a local copy up and running, follow these simple steps.
 
     ```sh
     cd frontend
-    npm install
+    pnpm install
     ```
 
-    - Create a `.env.local` file in the `frontend` directory and add your environment variables (e.g., for Clerk, database connection).
+    - Create a `.env.local` file in the `frontend` directory and add your environment variables (e.g., for Clerk, database connection, Pinata). See `.env.example`.
 
 3.  **Set up the Backend**
     ```sh
     cd ../backend
     poetry install
     ```
-    - Create a `.env` file in the `backend` directory and add any necessary environment variables.
+    - Create a `.env` file in the `backend` directory if you need to configure any environment variables for the backend.
 
 ### Running the Application
 
@@ -68,7 +72,7 @@ To get a local copy up and running, follow these simple steps.
 
     ```sh
     cd frontend
-    npm run dev
+    pnpm run dev
     ```
 
     The frontend will be available at `http://localhost:3000`.
@@ -78,7 +82,19 @@ To get a local copy up and running, follow these simple steps.
     cd ../backend
     poetry run python run_api.py
     ```
-    The backend API will be running on `http://localhost:8000` (or as configured).
+    The backend API will be running on `http://localhost:8000`.
+
+## API Usage
+
+The object detection API is available at the `/objectdetection` endpoint. You can send a POST request with an image to get the detected objects.
+
+Example using `curl`:
+
+```sh
+curl -X POST -F "file=@/path/to/your/image.jpg" http://localhost:8000/objectdetection
+```
+
+The response will be a JSON object containing the detected items and their bounding boxes.
 
 ## Project Structure
 
