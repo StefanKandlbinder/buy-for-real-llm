@@ -11,6 +11,7 @@ This project is a Next.js application with a tRPC backend and a PostgreSQL datab
 - **Authentication:** Clerk
 - **Schema Validation:** Zod
 - **State Management:** React Query
+- **File Storage:** Pinata
 
 **Project Structure:**
 
@@ -35,7 +36,19 @@ This project is a Next.js application with a tRPC backend and a PostgreSQL datab
 The tRPC API exposes the following routers:
 
 - **groups:** Provides procedures for interacting with the `groups` table.
+    - `getNestedGroups`: Fetches the entire hierarchy of groups and their associated images.
+    - `createGroup`: Creates a new group.
+    - `updateGroup`: Updates a group's name.
+    - `deleteGroup`: Deletes a group and all its child groups and media. This also deletes the media from Pinata.
 - **media:** Provides procedures for interacting with the `media` table.
+    - `createImage`: Creates an image record in the database after upload.
+    - `updateImage`: Updates an image's name.
+    - `deleteImage`: Deletes an image record from the database.
+    - `getImagesByGroup`: Fetches all images in a group.
+
+**Authentication:**
+
+Authentication is handled by Clerk. The `middleware.ts` file protects routes and redirects unauthenticated users to the sign-in page. It also handles role-based access control for the admin routes.
 
 **Scripts:**
 
