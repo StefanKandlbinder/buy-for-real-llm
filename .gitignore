@@ -35,7 +35,7 @@ backend/.venv
 
 # Node
 frontend/node_modules
-frontend/pnpm-lock.yaml
+# frontend/pnpm-lock.yaml
 
 # Next.js
 frontend/next-env.d.ts
