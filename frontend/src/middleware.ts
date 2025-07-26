@@ -1,10 +1,22 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+const isTenantAdminRoute = createRouteMatcher(["/products(.*)", "/ads(.*)"]);
+const isTenantRoute = createRouteMatcher(["/user(.*)"]);
 const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/"]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // Restrict admin routes to users with specific permissions
+  if (
+    isTenantAdminRoute(req) &&
+    (await auth()).sessionClaims?.metadata?.role !== "admin"
+  ) {
+    const url = new URL("/", req.url);
+    return NextResponse.redirect(url);
+  }
+
   if (!isPublicRoute(req)) {
+    console.info("isPublicRoute");
     const { userId } = await auth();
 
     if (!userId) {
@@ -12,6 +24,9 @@ export default clerkMiddleware(async (auth, req) => {
       return NextResponse.redirect(signInUrl);
     }
   }
+
+  // Restrict organization routes to signed in users
+  if (isTenantRoute(req)) await auth.protect();
 });
 
 export const config = {
