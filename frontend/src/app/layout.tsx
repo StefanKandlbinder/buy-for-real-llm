@@ -56,7 +56,7 @@ export default async function RootLayout({
               <ErrorProvider>
                 <ErrorBoundary>
                   {children}
-                  <Toaster />
+                  <Toaster expand={true} />
                 </ErrorBoundary>
               </ErrorProvider>
             </ThemeProvider>

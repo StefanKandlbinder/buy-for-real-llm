@@ -1,7 +1,7 @@
 {
-  "id": "160b88a5-9a88-4e4e-8514-ede29723898f",
+  "id": "a483773e-19ba-4896-a8ad-f92c0721e7da",
   "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "1",
+  "version": "7",
   "dialect": "postgresql",
   "tables": {
     "public.media": {
@@ -59,8 +59,12 @@
           "name": "media_group_id_groups_id_fk",
           "tableFrom": "media",
           "tableTo": "groups",
-          "columnsFrom": ["group_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -114,8 +118,72 @@
           "name": "groups_parent_id_groups_id_fk",
           "tableFrom": "groups",
           "tableTo": "groups",
-          "columnsFrom": ["parent_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.products": {
+      "name": "products",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "products_group_id_groups_id_fk": {
+          "name": "products_group_id_groups_id_fk",
+          "tableFrom": "products",
+          "tableTo": "groups",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

@@ -14,51 +14,18 @@
 # .env.local
 PINATA_JWT=your_pinata_jwt_token
 PINATA_GATEWAY_URL=https://gateway.pinata.cloud
-NEXT_PUBLIC_PINATA_GATEWAY_URL=https://gateway.pinata.cloud
-PINATA_GATEWAY_TOKEN=your_gateway_token
 ```
 
 ### Pinata Client Setup
 
 ```typescript
-// lib/pinata.ts
+// lib/config.ts
 import { PinataSDK } from "pinata";
 
-if (!process.env.PINATA_JWT) {
-  throw new Error("PINATA_JWT is not set in environment variables");
-}
-
 export const pinata = new PinataSDK({
-  pinataJwt: process.env.PINATA_JWT,
-  pinataGateway:
-    process.env.PINATA_GATEWAY_URL || "https://gateway.pinata.cloud",
+  pinataJwt: `${process.env.PINATA_JWT}`,
+  pinataGateway: `${process.env.PINATA_GATEWAY_URL}`,
 });
-
-// Gateway configuration
-export const gatewayConfig = {
-  baseUrl:
-    process.env.NEXT_PUBLIC_PINATA_GATEWAY_URL ||
-    "https://gateway.pinata.cloud",
-  token: process.env.PINATA_GATEWAY_TOKEN,
-};
-
-// File size limits (in bytes)
-export const FILE_LIMITS = {
-  maxImageSize: 5 * 1024 * 1024, // 5MB
-  maxDocumentSize: 10 * 1024 * 1024, // 10MB
-  maxVideoSize: 100 * 1024 * 1024, // 100MB
-};
-
-// Supported file types
-export const SUPPORTED_TYPES = {
-  images: ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"],
-  documents: [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ],
-  videos: ["video/mp4", "video/webm", "video/ogg"],
-};
 ```
 
 ## File Upload Implementation
@@ -69,401 +36,119 @@ export const SUPPORTED_TYPES = {
 // actions/mediaActions.ts
 "use server";
 
+import { pinata } from "@/lib/config";
+import { api } from "@/trpc/server/server";
 import { revalidatePath } from "next/cache";
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
-import { pinata } from "@/lib/pinata";
-import { db } from "@/db/drizzle";
-import { media } from "@/db/schema/media";
 
 export async function uploadMediaAction(formData: FormData) {
+  const file = formData.get("file") as File;
+  const groupId = Number(formData.get("groupId"));
+  const label = formData.get("label") as string;
+  const description = formData.get("description") as string;
+
+  if (!file || !groupId) {
+    return { error: "File and group ID are required." };
+  }
+
+  // Check file size limit using environment variable
+  const maxSizeKB = parseInt(process.env.NEXT_PUBLIC_MAX_FILE_SIZE_KB || "300");
+  const maxSizeInBytes = maxSizeKB * 1024;
+  if (file.size > maxSizeInBytes) {
+    return {
+      error: `File size exceeds the ${maxSizeKB}KB limit. Your file is ${Math.round(
+        file.size / 1024
+      )}KB.`,
+    };
+  }
+
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
+    const { cid, id } = await pinata.upload.public.file(file);
+    const url = await pinata.gateways.public.convert(cid);
 
-    const file = formData.get("file") as File;
-    const groupId = parseInt(formData.get("groupId") as string, 10);
-    const label = formData.get("label") as string;
-    const description = formData.get("description") as string;
-
-    if (!file || !groupId || !label) {
-      throw new Error("Missing required fields");
-    }
-
-    // Validate file
-    const validation = validateFile(file);
-    if (!validation.isValid) {
-      throw new Error(validation.error);
-    }
-
-    // Upload to Pinata
-    const uploadResult = await pinata.upload.file(file).addMetadata({
-      name: label,
-      keyvalues: {
-        originalName: file.name,
-        uploadedBy: userId,
-        groupId: groupId.toString(),
-        description: description || "",
-        mimeType: file.type,
-        size: file.size.toString(),
-      },
+    const newMedia = await api.media.createImage({
+      id: id,
+      url,
+      label,
+      description,
+      groupId,
     });
 
-    // Save to database
-    const newMedia = await db
-      .insert(media)
-      .values({
-        id: uploadResult.IpfsHash,
-        url: `${process.env.NEXT_PUBLIC_PINATA_GATEWAY_URL}/ipfs/${uploadResult.IpfsHash}`,
-        label,
-        description,
-        groupId,
-      })
-      .returning();
+    revalidatePath("/products");
 
-    revalidatePath("/");
-    return {
-      success: true,
-      media: newMedia[0],
-      ipfsHash: uploadResult.IpfsHash,
-    };
+    return newMedia;
   } catch (error) {
-    console.error("Upload error:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Upload failed",
-    };
+    console.error("Upload failed", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return { error: `Upload failed: ${message}` };
   }
-}
-
-// File validation helper
-function validateFile(file: File): { isValid: boolean; error?: string } {
-  // Check file size
-  if (
-    file.size > FILE_LIMITS.maxImageSize &&
-    SUPPORTED_TYPES.images.includes(file.type)
-  ) {
-    return { isValid: false, error: "Image file too large (max 5MB)" };
-  }
-  if (
-    file.size > FILE_LIMITS.maxDocumentSize &&
-    SUPPORTED_TYPES.documents.includes(file.type)
-  ) {
-    return { isValid: false, error: "Document file too large (max 10MB)" };
-  }
-  if (
-    file.size > FILE_LIMITS.maxVideoSize &&
-    SUPPORTED_TYPES.videos.includes(file.type)
-  ) {
-    return { isValid: false, error: "Video file too large (max 100MB)" };
-  }
-
-  // Check file type
-  const allSupportedTypes = [
-    ...SUPPORTED_TYPES.images,
-    ...SUPPORTED_TYPES.documents,
-    ...SUPPORTED_TYPES.videos,
-  ];
-
-  if (!allSupportedTypes.includes(file.type)) {
-    return { isValid: false, error: "Unsupported file type" };
-  }
-
-  return { isValid: true };
 }
 ```
 
 ### File Upload Hook
 
 ```typescript
-// hooks/file/useFileUpload.ts
+// hooks/file/useUploadFile.ts
+"use client";
+
+import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { useState } from "react";
-import { uploadMediaAction } from "@/actions/mediaActions";
-import { toast } from "sonner";
+import { useMedia } from "./useMedia";
 
-type TUploadProgress = {
-  progress: number;
-  status: "idle" | "uploading" | "success" | "error";
-  fileName?: string;
-};
+export function useUploadFile() {
+  const { createMutation } = useMedia();
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-export function useFileUpload() {
-  const [uploadProgress, setUploadProgress] = useState<TUploadProgress>({
-    progress: 0,
-    status: "idle",
-  });
+  const maxFileSizeKB = parseInt(
+    process.env.NEXT_PUBLIC_MAX_FILE_SIZE_KB || "300"
+  );
+  const maxFileSizeBytes = maxFileSizeKB * 1024;
+
+  const validateFile = (file: File): string | null => {
+    if (file.size > maxFileSizeBytes) {
+      return `File size exceeds the ${maxFileSizeKB}KB limit. Your file is ${Math.round(
+        file.size / 1024
+      )}KB.`;
+    }
+    return null;
+  };
 
   const uploadFile = async (
     file: File,
-    groupId: number,
-    label: string,
+    group: NestedGroup,
+    label?: string,
     description?: string
   ) => {
-    setUploadProgress({
-      progress: 0,
-      status: "uploading",
-      fileName: file.name,
-    });
-
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("groupId", groupId.toString());
-      formData.append("label", label);
-      if (description) {
-        formData.append("description", description);
-      }
-
-      // Simulate progress (since Pinata doesn't provide real-time progress)
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => ({
-          ...prev,
-          progress: Math.min(prev.progress + 10, 90),
-        }));
-      }, 200);
-
-      const result = await uploadMediaAction(formData);
-
-      clearInterval(progressInterval);
-
-      if (result.success) {
-        setUploadProgress({
-          progress: 100,
-          status: "success",
-          fileName: file.name,
-        });
-
-        toast.success(`File "${file.name}" uploaded successfully`);
-        return result;
-      } else {
-        throw new Error(result.error);
-      }
-    } catch (error) {
-      setUploadProgress({
-        progress: 0,
-        status: "error",
-        fileName: file.name,
-      });
-
-      const errorMessage =
-        error instanceof Error ? error.message : "Upload failed";
-      toast.error(errorMessage);
-      throw error;
+    // Client-side validation
+    const validationErr = validateFile(file);
+    if (validationErr) {
+      setValidationError(validationErr);
+      throw new Error(validationErr);
     }
+
+    setValidationError(null);
+
+    const formData = new FormData();
+    formData.set("file", file);
+    formData.set("groupId", String(group.id));
+    formData.set("label", label || file.name);
+    formData.set("description", description || "");
+
+    return createMutation.mutateAsync(formData);
   };
 
-  const resetProgress = () => {
-    setUploadProgress({
-      progress: 0,
-      status: "idle",
-    });
+  const reset = () => {
+    setValidationError(null);
+    createMutation.reset();
   };
 
   return {
     uploadFile,
-    uploadProgress,
-    resetProgress,
-    isUploading: uploadProgress.status === "uploading",
+    uploading: createMutation.isPending,
+    error: createMutation.error?.message || validationError,
+    reset,
+    validateFile,
+    maxFileSizeKB,
   };
-}
-```
-
-### File Upload Component
-
-```typescript
-// components/file/FileUploadDialog.tsx
-"use client";
-
-import { useState } from "react";
-import { useFileUpload } from "@/hooks/file/useFileUpload";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Upload, X, FileIcon } from "lucide-react";
-
-type TFileUploadDialogProps = {
-  groupId: number;
-  onUploadComplete?: () => void;
-};
-
-export function FileUploadDialog({
-  groupId,
-  onUploadComplete,
-}: TFileUploadDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [label, setLabel] = useState("");
-  const [description, setDescription] = useState("");
-  const { uploadFile, uploadProgress, resetProgress, isUploading } =
-    useFileUpload();
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      setLabel(file.name.split(".")[0]); // Use filename as default label
-    }
-  };
-
-  const handleRemoveFile = () => {
-    setSelectedFile(null);
-    setLabel("");
-    resetProgress();
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile || !label.trim()) return;
-
-    try {
-      await uploadFile(selectedFile, groupId, label.trim(), description.trim());
-
-      // Reset form
-      setSelectedFile(null);
-      setLabel("");
-      setDescription("");
-      setOpen(false);
-      onUploadComplete?.();
-    } catch (error) {
-      // Error is handled by the hook
-    }
-  };
-
-  const handleClose = () => {
-    if (!isUploading) {
-      setOpen(false);
-      handleRemoveFile();
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Upload className="h-4 w-4 mr-2" />
-          Upload File
-        </Button>
-      </DialogTrigger>
-
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Upload File</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* File Selection */}
-          {!selectedFile ? (
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <FileIcon className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <Label htmlFor="file-upload" className="cursor-pointer">
-                <span className="text-sm font-medium text-blue-600 hover:text-blue-500">
-                  Click to upload a file
-                </span>
-                <Input
-                  id="file-upload"
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                  accept="image/*,application/pdf,.doc,.docx"
-                  disabled={isUploading}
-                />
-              </Label>
-              <p className="text-xs text-gray-500 mt-2">
-                PNG, JPG, GIF, PDF up to 10MB
-              </p>
-            </div>
-          ) : (
-            /* Selected File Display */
-            <div className="border rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <FileIcon className="h-8 w-8 text-blue-600" />
-                  <div>
-                    <p className="text-sm font-medium">{selectedFile.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                </div>
-                {!isUploading && (
-                  <Button variant="ghost" size="sm" onClick={handleRemoveFile}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              {/* Upload Progress */}
-              {uploadProgress.status === "uploading" && (
-                <div className="mt-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Uploading...</span>
-                    <span>{uploadProgress.progress}%</span>
-                  </div>
-                  <Progress value={uploadProgress.progress} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Form Fields */}
-          {selectedFile && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="label">Label *</Label>
-                <Input
-                  id="label"
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                  placeholder="Enter file label"
-                  disabled={isUploading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Enter file description (optional)"
-                  disabled={isUploading}
-                />
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex justify-end space-x-2 pt-4">
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isUploading}
-          >
-            Cancel
-          </Button>
-          {selectedFile && (
-            <Button
-              onClick={handleUpload}
-              disabled={!label.trim() || isUploading}
-            >
-              {isUploading ? "Uploading..." : "Upload"}
-            </Button>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
 }
 ```
 
