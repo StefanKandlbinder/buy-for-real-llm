@@ -1,5 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { User2 } from "lucide-react";
+
 // import { api } from "@/trpc/server/server";
 
 export default async function LandingPage() {
@@ -31,6 +39,27 @@ export default async function LandingPage() {
           >
             Contact
           </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-2 hover:cursor-pointer">
+              <User2 className="w-4 h-4" />
+              <span className="text-sm font-medium">Login</span>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              side="top"
+              className="w-[--radix-popper-anchor-width]"
+            >
+              <DropdownMenuItem>
+                <Link className="w-full h-full" href="/sign-in">
+                  Sign In
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <Link className="w-full h-full" href="/sign-up">
+                  Sign Up
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
       </header>
       <main className="flex-1">
