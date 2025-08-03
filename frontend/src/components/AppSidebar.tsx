@@ -1,6 +1,6 @@
 "use client";
 
-import { Video, Folder, FolderOpen, FolderDown, Plus } from "lucide-react";
+import { Folder, FolderOpen, FolderDown, Plus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
@@ -17,16 +17,11 @@ import {
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { AddGroupDialog } from "./Group/AddGroupDialog";
 import { useGroups } from "@/hooks/group/useGroups";
+import { useProductGroups } from "@/hooks/product/useProductGroups";
+import { useAdvertisementGroups } from "@/hooks/advertisement/useAdvertisementGroups";
+import { useProducts } from "@/hooks/product/useProducts";
+import { useAdvertisements } from "@/hooks/advertisement/useAdvertisements";
 import { cn } from "@/lib/utils";
-
-// Menu items.
-const ads = [
-  {
-    title: "video",
-    url: "/admin/ads",
-    icon: Video,
-  },
-];
 
 interface GroupTreeItemProps {
   group: NestedGroup;
@@ -40,7 +35,8 @@ function GroupTreeItem({
   allGroups,
   currentGroupId,
   level = 0,
-}: GroupTreeItemProps) {
+  type = "products",
+}: GroupTreeItemProps & { type?: "products" | "advertisements" }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const childGroups = allGroups.filter((g) => g.parent_id === group.id);
   const hasChildren = childGroups.length > 0;
@@ -50,7 +46,7 @@ function GroupTreeItem({
     <>
       <SidebarMenuItem>
         <SidebarMenuButton asChild className={cn(isCurrentGroup && "bg-muted")}>
-          <Link href={`/admin/products/${group.slug}`} scroll={false}>
+          <Link href={`/admin/${type}/${group.slug}`} scroll={false}>
             {hasChildren ? (
               <button
                 onClick={(e) => {
@@ -81,6 +77,7 @@ function GroupTreeItem({
               allGroups={allGroups}
               currentGroupId={currentGroupId}
               level={level + 1}
+              type={type}
             />
           ))}
         </div>
@@ -91,25 +88,41 @@ function GroupTreeItem({
 
 interface AppSidebarProps {
   initialGroups?: NestedGroup[];
+  initialProductGroups?: NestedGroup[];
+  initialAdvertisementGroups?: NestedGroup[];
 }
 
-export function AppSidebar({ initialGroups }: AppSidebarProps = {}) {
-  const { groups: clientGroups, createGroupMutation } =
-    useGroups(initialGroups);
+export function AppSidebar({ 
+  initialGroups, 
+  initialProductGroups, 
+  initialAdvertisementGroups 
+}: AppSidebarProps = {}) {
+  const { groups: clientGroups } = useGroups(initialGroups);
+  const { productGroups: clientProductGroups } = useProductGroups(initialProductGroups);
+  const { advertisementGroups: clientAdvertisementGroups } = useAdvertisementGroups(initialAdvertisementGroups);
+  const { createProductWithGroupMutation } = useProducts();
+  const { createAdvertisementWithGroupMutation } = useAdvertisements();
   const pathname = usePathname();
 
   // Use client data for real-time updates, fallback to server data
   const groups = clientGroups || initialGroups;
-  const rootGroups = groups?.filter((g) => g.parent_id === null) ?? [];
+  const productGroups = clientProductGroups || initialProductGroups;
+  const advertisementGroups = clientAdvertisementGroups || initialAdvertisementGroups;
+  const rootProductGroups = productGroups?.filter((g) => g.parent_id === null) ?? [];
+  const rootAdvertisementGroups = advertisementGroups?.filter((g) => g.parent_id === null) ?? [];
 
   // Find the current group based on the pathname
   const getCurrentGroupId = () => {
-    if (pathname === "/admin/products") return undefined;
+    if (pathname === "/admin/products" || pathname === "/admin/advertisements")
+      return undefined;
 
     const pathSegments = pathname.split("/");
     const lastSegment = pathSegments[pathSegments.length - 1];
 
-    if (pathSegments[1] === "admin" && pathSegments[2] === "products") {
+    if (
+      pathSegments[1] === "admin" &&
+      (pathSegments[2] === "products" || pathSegments[2] === "advertisements")
+    ) {
       const currentGroup = groups?.find((group) => group.slug === lastSegment);
       return currentGroup?.id;
     }
@@ -127,9 +140,9 @@ export function AppSidebar({ initialGroups }: AppSidebarProps = {}) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <AddGroupDialog
-                  groups={groups ?? []}
+                  groups={productGroups ?? []}
                   createGroupMutation={(values) =>
-                    createGroupMutation.mutate(values)
+                    createProductWithGroupMutation.mutate(values)
                   }
                   triggerButton={
                     <SidebarMenuButton>
@@ -139,12 +152,13 @@ export function AppSidebar({ initialGroups }: AppSidebarProps = {}) {
                   }
                 />
               </SidebarMenuItem>
-              {rootGroups.map((group) => (
+              {rootProductGroups.map((group) => (
                 <GroupTreeItem
                   key={group.id}
                   group={group}
-                  allGroups={groups ?? []}
+                  allGroups={productGroups ?? []}
                   currentGroupId={activeGroupId}
+                  type="products"
                 />
               ))}
             </SidebarMenu>
@@ -154,15 +168,28 @@ export function AppSidebar({ initialGroups }: AppSidebarProps = {}) {
           <SidebarGroupLabel>Advertisements</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {ads.map((product) => (
-                <SidebarMenuItem key={product.title}>
-                  <SidebarMenuButton asChild>
-                    <Link href={product.url} scroll={false}>
-                      <product.icon />
-                      <span>{product.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+              <SidebarMenuItem>
+                <AddGroupDialog
+                  groups={advertisementGroups ?? []}
+                  createGroupMutation={(values) =>
+                    createAdvertisementWithGroupMutation.mutate(values)
+                  }
+                  triggerButton={
+                    <SidebarMenuButton>
+                      <Plus className="h-4 w-4" />
+                      <span>Add Group</span>
+                    </SidebarMenuButton>
+                  }
+                />
+              </SidebarMenuItem>
+              {rootAdvertisementGroups.map((group) => (
+                <GroupTreeItem
+                  key={group.id}
+                  group={group}
+                  allGroups={advertisementGroups ?? []}
+                  currentGroupId={activeGroupId}
+                  type="advertisements"
+                />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>

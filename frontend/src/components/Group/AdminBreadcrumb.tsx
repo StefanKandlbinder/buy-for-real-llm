@@ -22,19 +22,31 @@ export function AdminBreadcrumb({ initialGroups }: AdminBreadcrumbProps) {
   const pathname = usePathname();
   const { groups } = useGroups(initialGroups);
 
-  // Only show breadcrumb on product pages
-  if (!pathname.startsWith("/admin/products")) {
+  // Only show breadcrumb on product or advertisement pages
+  if (
+    !pathname.startsWith("/admin/products") &&
+    !pathname.startsWith("/admin/advertisements")
+  ) {
     return null;
   }
 
+  // Determine the content type and base path
+  const contentType = pathname.startsWith("/admin/products")
+    ? "products"
+    : "advertisements";
+  const basePath = `/admin/${contentType}`;
+
   // Find the current group based on the pathname
   const getCurrentGroupId = () => {
-    if (pathname === "/admin/products") return undefined;
+    if (pathname === basePath) return undefined;
 
     const pathSegments = pathname.split("/");
     const lastSegment = pathSegments[pathSegments.length - 1];
 
-    if (pathSegments[1] === "admin" && pathSegments[2] === "products") {
+    if (
+      pathSegments[1] === "admin" &&
+      (pathSegments[2] === "products" || pathSegments[2] === "advertisements")
+    ) {
       const currentGroup = groups?.find((group) => group.slug === lastSegment);
       return currentGroup?.id;
     }
@@ -70,7 +82,7 @@ export function AdminBreadcrumb({ initialGroups }: AdminBreadcrumbProps) {
   // Build the full URL path for each breadcrumb item
   const buildUrlPath = (items: NestedGroup[], targetIndex: number): string => {
     const pathItems = items.slice(0, targetIndex + 1);
-    return `/admin/products/${pathItems.map((item) => item.slug).join("/")}`;
+    return `${basePath}/${pathItems.map((item) => item.slug).join("/")}`;
   };
 
   return (
@@ -78,7 +90,9 @@ export function AdminBreadcrumb({ initialGroups }: AdminBreadcrumbProps) {
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink asChild>
-            <Link href="/admin/products">Products</Link>
+            <Link href={basePath}>
+              {contentType === "products" ? "Products" : "Advertisements"}
+            </Link>
           </BreadcrumbLink>
         </BreadcrumbItem>
         {breadcrumbItems.map((item, index) => (

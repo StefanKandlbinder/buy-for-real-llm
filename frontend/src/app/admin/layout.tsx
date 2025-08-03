@@ -9,11 +9,19 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const groups = await api.groups.getNestedGroups();
+  const [groups, productGroups, advertisementGroups] = await Promise.all([
+    api.groups.getNestedGroups(),
+    api.groups.getGroupsWithProducts(),
+    api.groups.getGroupsWithAdvertisements(),
+  ]);
 
   return (
     <SidebarProvider>
-      <AppSidebar initialGroups={groups} />
+      <AppSidebar 
+        initialGroups={groups} 
+        initialProductGroups={productGroups}
+        initialAdvertisementGroups={advertisementGroups}
+      />
       <div className="flex flex-col min-h-screen w-full">
         <header className="flex items-center justify-between py-4 px-6 border-b w-full gap-4">
           <div className="flex items-center gap-4">

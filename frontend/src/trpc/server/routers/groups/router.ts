@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "@/trpc/server/trpc";
-import { groups, media } from "@/db/schema";
+import { groups, media, advertisements, products } from "@/db/schema";
 import { eq, sql, inArray } from "drizzle-orm";
 import {
   insertGroupSchema,
@@ -67,6 +67,84 @@ export const groupsRouter = router({
           gh.path || '->' || CAST(g.id AS VARCHAR)
         FROM ${groups} g
         JOIN group_hierarchy gh ON g.parent_id = gh.id
+      )
+      SELECT 
+        gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path,
+        COALESCE(
+          json_agg(
+            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description)
+          ) FILTER (WHERE i.id IS NOT NULL),
+          '[]'::json
+        ) as media
+      FROM group_hierarchy gh
+      LEFT JOIN ${media} i ON gh.id = i.group_id
+      GROUP BY gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path
+      ORDER BY gh.path;
+    `;
+
+    const result = await ctx.db.execute<NestedGroup>(query);
+    return result.rows as NestedGroup[];
+  }),
+
+  getGroupsWithAdvertisements: protectedProcedure.query(async ({ ctx }) => {
+    const query = sql`
+      WITH RECURSIVE group_hierarchy AS (
+        -- Anchor member: select root groups that have advertisements
+        SELECT 
+          g.id, g.name, g.slug, g.parent_id, g.created_at, g.updated_at, 0 as level,
+          CAST(g.id AS VARCHAR) as path
+        FROM ${groups} g
+        WHERE g.parent_id IS NULL
+        AND EXISTS (SELECT 1 FROM ${advertisements} a WHERE a.group_id = g.id)
+
+        UNION ALL
+
+        -- Recursive member: select child groups that have advertisements
+        SELECT 
+          g.id, g.name, g.slug, g.parent_id, g.created_at, g.updated_at, gh.level + 1,
+          gh.path || '->' || CAST(g.id AS VARCHAR)
+        FROM ${groups} g
+        JOIN group_hierarchy gh ON g.parent_id = gh.id
+        WHERE EXISTS (SELECT 1 FROM ${advertisements} a WHERE a.group_id = g.id)
+      )
+      SELECT 
+        gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path,
+        COALESCE(
+          json_agg(
+            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description)
+          ) FILTER (WHERE i.id IS NOT NULL),
+          '[]'::json
+        ) as media
+      FROM group_hierarchy gh
+      LEFT JOIN ${media} i ON gh.id = i.group_id
+      GROUP BY gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path
+      ORDER BY gh.path;
+    `;
+
+    const result = await ctx.db.execute<NestedGroup>(query);
+    return result.rows as NestedGroup[];
+  }),
+
+  getGroupsWithProducts: protectedProcedure.query(async ({ ctx }) => {
+    const query = sql`
+      WITH RECURSIVE group_hierarchy AS (
+        -- Anchor member: select root groups that have products
+        SELECT 
+          g.id, g.name, g.slug, g.parent_id, g.created_at, g.updated_at, 0 as level,
+          CAST(g.id AS VARCHAR) as path
+        FROM ${groups} g
+        WHERE g.parent_id IS NULL
+        AND EXISTS (SELECT 1 FROM ${products} p WHERE p.group_id = g.id)
+
+        UNION ALL
+
+        -- Recursive member: select child groups that have products
+        SELECT 
+          g.id, g.name, g.slug, g.parent_id, g.created_at, g.updated_at, gh.level + 1,
+          gh.path || '->' || CAST(g.id AS VARCHAR)
+        FROM ${groups} g
+        JOIN group_hierarchy gh ON g.parent_id = gh.id
+        WHERE EXISTS (SELECT 1 FROM ${products} p WHERE p.group_id = g.id)
       )
       SELECT 
         gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path,

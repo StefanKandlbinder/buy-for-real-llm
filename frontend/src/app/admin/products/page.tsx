@@ -2,7 +2,7 @@ import { ProductGallery } from "@/components/Group/ProductGallery";
 import { api } from "@/trpc/server/server";
 
 export default async function ProductsPage() {
-  const initialGroups = await api.groups.getNestedGroups();
+  const initialGroups = await api.groups.getGroupsWithProducts();
 
   return (
     <>

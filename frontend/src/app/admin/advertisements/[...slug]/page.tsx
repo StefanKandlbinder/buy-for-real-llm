@@ -1,4 +1,4 @@
-import { ProductGallery } from "@/components/Group/ProductGallery";
+import { AdvertisementGallery } from "@/components/Group/AdvertisementGallery";
 import { api } from "@/trpc/server/server";
 import { notFound } from "next/navigation";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
@@ -10,7 +10,7 @@ interface GroupPageProps {
 }
 
 export default async function GroupPage({ params }: GroupPageProps) {
-  const groups = await api.groups.getGroupsWithProducts();
+  const groups = await api.groups.getGroupsWithAdvertisements();
   const { slug: pathSlugs } = await params;
 
   // Handle the nested path: ["parent-slug", "child-slug", "grandchild-slug"]
@@ -45,7 +45,10 @@ export default async function GroupPage({ params }: GroupPageProps) {
   return (
     <>
       <h1 className="text-3xl font-bold mb-4 mt-12">{currentGroup.name}</h1>
-      <ProductGallery initialData={groups} currentGroupId={currentGroup.id} />
+      <AdvertisementGallery
+        initialData={groups}
+        currentGroupId={currentGroup.id}
+      />
     </>
   );
 }

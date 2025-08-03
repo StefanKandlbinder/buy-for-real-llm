@@ -30,11 +30,13 @@ export function GroupNode({
   allGroups,
   deleteGroupMutation,
   createGroupMutation,
+  contentType = "products",
 }: {
   group: NestedGroup;
   allGroups: NestedGroup[];
   deleteGroupMutation: (value: { id: number }) => void;
   createGroupMutation: (values: z.infer<typeof insertGroupSchema>) => void;
+  contentType?: "products" | "advertisements";
 }) {
   const childGroups = allGroups.filter((g) => g.parent_id === group.id);
   const [showAddFileDialog, setShowAddFileDialog] = useState(false);
@@ -62,7 +64,7 @@ export function GroupNode({
       <CardHeader className="flex flex-row items-center justify-between flex-wrap">
         <CardTitle>
           <Link
-            href={`/admin/products/${groupPath}`}
+            href={`/admin/${contentType}/${groupPath}`}
             className="hover:underline"
           >
             {group.name}
@@ -159,6 +161,7 @@ export function GroupNode({
             allGroups={allGroups}
             deleteGroupMutation={deleteGroupMutation}
             createGroupMutation={createGroupMutation}
+            contentType={contentType}
           />
         ))}
       </CardContent>

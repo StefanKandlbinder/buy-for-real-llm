@@ -3,26 +3,26 @@
 import { GroupNode } from "./GroupNode";
 import { AddGroupDialog } from "./AddGroupDialog";
 import { useGroups } from "@/hooks/group/useGroups";
-import { useProductGroups } from "@/hooks/product/useProductGroups";
-import { useProducts } from "@/hooks/product/useProducts";
+import { useAdvertisementGroups } from "@/hooks/advertisement/useAdvertisementGroups";
+import { useAdvertisements } from "@/hooks/advertisement/useAdvertisements";
 import { Skeleton } from "../ui/skeleton";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
-interface ProductGalleryProps {
+interface AdvertisementGalleryProps {
   initialData?: NestedGroup[];
   currentGroupId?: number;
 }
 
-export function ProductGallery({
+export function AdvertisementGallery({
   initialData,
   currentGroupId,
-}: ProductGalleryProps) {
+}: AdvertisementGalleryProps) {
   const { groups, deleteGroupMutation, groupsQuery } = useGroups(initialData);
-  const { productGroups } = useProductGroups(initialData);
-  const { createProductWithGroupMutation } = useProducts();
+  const { advertisementGroups } = useAdvertisementGroups(initialData);
+  const { createAdvertisementWithGroupMutation } = useAdvertisements();
 
-  // Use filtered product groups instead of all groups
-  const groupsToDisplay = productGroups || groups;
+  // Use filtered advertisement groups instead of all groups
+  const groupsToDisplay = advertisementGroups || groups;
   
   // If we have a current group ID, show only that group (children will be shown recursively by GroupNode)
   // Otherwise, show root groups
@@ -50,7 +50,7 @@ export function ProductGallery({
         <AddGroupDialog
           groups={groups ?? []}
           createGroupMutation={(values) =>
-            createProductWithGroupMutation.mutate(values)
+            createAdvertisementWithGroupMutation.mutate(values)
           }
         />
       </div>
@@ -61,9 +61,9 @@ export function ProductGallery({
           allGroups={groupsToDisplay ?? []}
           deleteGroupMutation={(values) => deleteGroupMutation.mutate(values)}
           createGroupMutation={(values) =>
-            createProductWithGroupMutation.mutate(values)
+            createAdvertisementWithGroupMutation.mutate(values)
           }
-          contentType="products"
+          contentType="advertisements"
         />
       ))}
     </div>

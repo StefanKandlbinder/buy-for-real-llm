@@ -124,6 +124,7 @@ export function useProducts() {
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: groupsQueryKey });
         queryClient.invalidateQueries({ queryKey: productsQueryKey });
+        queryClient.invalidateQueries({ queryKey: trpc.groups.getGroupsWithProducts.queryKey() });
       },
     })
   );
