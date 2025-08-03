@@ -73,13 +73,12 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Run Database Migrations
-        run: |
-          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-          npx drizzle-kit migrate
+        run: npx drizzle-kit migrate
         # Fallback to manual env if pull doesn't work
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Build Project
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
