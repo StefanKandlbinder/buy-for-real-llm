@@ -108,8 +108,8 @@ export function AppSidebar({ initialGroups }: AppSidebarProps = {}) {
     useGroups(initialGroups);
   const pathname = usePathname();
 
-  // Use server-fetched data if available, otherwise fall back to client data
-  const groups = initialGroups || clientGroups;
+  // Use client data for real-time updates, fallback to server data
+  const groups = clientGroups || initialGroups;
   const rootGroups = groups?.filter((g) => g.parent_id === null) ?? [];
 
   // Find the current group based on the pathname

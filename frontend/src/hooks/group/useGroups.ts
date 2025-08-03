@@ -3,7 +3,6 @@ import { useTRPC } from "@/trpc/client/client";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { toast } from "sonner";
 import { useAsyncErrorHandler } from "@/components/Error/ErrorProvider";
-import { revalidateAdminPages } from "@/actions/revalidate";
 
 export function useGroups(initialData?: NestedGroup[]) {
   const trpc = useTRPC();
@@ -15,6 +14,7 @@ export function useGroups(initialData?: NestedGroup[]) {
     trpc.groups.getNestedGroups.queryOptions(undefined, {
       refetchOnWindowFocus: false,
       initialData,
+      staleTime: 0, // Always consider data stale to allow immediate refetch
     })
   );
 
@@ -29,6 +29,7 @@ export function useGroups(initialData?: NestedGroup[]) {
         await queryClient.cancelQueries({ queryKey: groupsQueryKey });
         const previousGroups = queryClient.getQueryData(groupsQueryKey);
         queryClient.setQueryData(groupsQueryKey, (oldData) => {
+          const parentGroup = oldData?.find((g) => g.id === newGroup.parentId);
           const optimisticNewGroup: NestedGroup = {
             name: newGroup.name,
             slug:
@@ -41,25 +42,22 @@ export function useGroups(initialData?: NestedGroup[]) {
             id: Date.now(),
             parent_id: newGroup.parentId ?? null,
             media: [],
-            level:
-              oldData?.find((g) => g.id === newGroup.parentId)?.level ?? 0 + 1,
-            path: `${
-              oldData?.find((g) => g.id === newGroup.parentId)?.path ?? ""
-            }->${Date.now()}`,
+            level: parentGroup ? parentGroup.level + 1 : 0,
+            path: parentGroup
+              ? `${parentGroup.path}->${Date.now()}`
+              : `${Date.now()}`,
           };
           return [...(oldData ?? []), optimisticNewGroup];
         });
         return { previousGroups, loadingToast };
       },
-      onSuccess: async (data, variables, context) => {
+      onSuccess: (data, variables, context) => {
         toast.success(
           `Group "${variables.name}" has been created successfully.`,
           {
             id: context?.loadingToast,
           }
         );
-        // Revalidate server-side data
-        await revalidateAdminPages();
       },
       onError: (err, newGroup, context) => {
         if (context?.previousGroups) {
@@ -95,7 +93,7 @@ export function useGroups(initialData?: NestedGroup[]) {
         );
         return { previousGroups, groupName: groupToDelete?.name, loadingToast };
       },
-      onSuccess: async (data, variables, context) => {
+      onSuccess: (data, variables, context) => {
         if (data && data.success === false) {
           toast.error(
             data.message || "Failed to delete group. Please try again.",
@@ -113,8 +111,6 @@ export function useGroups(initialData?: NestedGroup[]) {
             id: context?.loadingToast,
           }
         );
-        // Revalidate server-side data
-        await revalidateAdminPages();
       },
       onError: (err, deletedGroup, context) => {
         if (context?.previousGroups) {
