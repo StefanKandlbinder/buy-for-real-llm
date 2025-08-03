@@ -2,7 +2,11 @@ import { z } from "zod";
 import { protectedProcedure, router } from "@/trpc/server/trpc";
 import { groups, media } from "@/db/schema";
 import { eq, sql, inArray } from "drizzle-orm";
-import { insertGroupSchema, updateGroupSchema } from "./validation";
+import {
+  insertGroupSchema,
+  updateGroupSchema,
+  generateSlug,
+} from "./validation";
 import { Context } from "@/trpc/server/context";
 import { deleteImagesFromPinata } from "../media/router";
 
@@ -35,6 +39,7 @@ async function getAllChildGroupIds(
 export type NestedGroup = {
   id: number;
   name: string;
+  slug: string;
   parent_id: number | null;
   level: number;
   path: string;
@@ -49,7 +54,7 @@ export const groupsRouter = router({
       WITH RECURSIVE group_hierarchy AS (
         -- Anchor member: select root groups (those with no parent)
         SELECT 
-          g.id, g.name, g.parent_id, g.created_at, g.updated_at, 0 as level,
+          g.id, g.name, g.slug, g.parent_id, g.created_at, g.updated_at, 0 as level,
           CAST(g.id AS VARCHAR) as path
         FROM ${groups} g
         WHERE g.parent_id IS NULL
@@ -58,13 +63,13 @@ export const groupsRouter = router({
 
         -- Recursive member: select child groups
         SELECT 
-          g.id, g.name, g.parent_id, g.created_at, g.updated_at, gh.level + 1,
+          g.id, g.name, g.slug, g.parent_id, g.created_at, g.updated_at, gh.level + 1,
           gh.path || '->' || CAST(g.id AS VARCHAR)
         FROM ${groups} g
         JOIN group_hierarchy gh ON g.parent_id = gh.id
       )
       SELECT 
-        gh.id, gh.name, gh.parent_id, gh.level, gh.path,
+        gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path,
         COALESCE(
           json_agg(
             json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description)
@@ -73,7 +78,7 @@ export const groupsRouter = router({
         ) as media
       FROM group_hierarchy gh
       LEFT JOIN ${media} i ON gh.id = i.group_id
-      GROUP BY gh.id, gh.name, gh.parent_id, gh.level, gh.path
+      GROUP BY gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path
       ORDER BY gh.path;
     `;
 
@@ -84,10 +89,12 @@ export const groupsRouter = router({
   createGroup: protectedProcedure
     .input(insertGroupSchema)
     .mutation(async ({ ctx, input }) => {
+      const slug = input.slug || generateSlug(input.name);
       const [newGroup] = await ctx.db
         .insert(groups)
         .values({
           name: input.name,
+          slug: slug,
           parentId: input.parentId ?? null,
         })
         .returning();

@@ -38,6 +38,8 @@ type AddGroupDialogProps = {
   createGroupMutation: (values: z.infer<typeof insertGroupSchema>) => void;
   triggerButton?: React.ReactNode;
   defaultParentId?: number | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export function AddGroupDialog({
@@ -45,8 +47,12 @@ export function AddGroupDialog({
   createGroupMutation,
   triggerButton,
   defaultParentId,
+  open,
+  onOpenChange,
 }: AddGroupDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const controlledOpen = open !== undefined ? open : isOpen;
+  const controlledSetOpen = onOpenChange || setIsOpen;
 
   const form = useForm<z.infer<typeof insertGroupSchema>>({
     resolver: zodResolver(insertGroupSchema),
@@ -56,25 +62,29 @@ export function AddGroupDialog({
   });
 
   function onSubmit(values: z.infer<typeof insertGroupSchema>) {
-    const parentId = values.parentId ? values.parentId : null;
+    // Use the defaultParentId if provided, otherwise use the form value
+    const parentId =
+      defaultParentId !== undefined ? defaultParentId : values.parentId ?? null;
     createGroupMutation({ ...values, parentId });
-    setIsOpen(false);
+    controlledSetOpen(false);
     form.reset();
   }
 
   return (
     <Dialog
-      open={isOpen}
+      open={controlledOpen}
       onOpenChange={(open) => {
-        setIsOpen(open);
+        controlledSetOpen(open);
         if (!open) {
           form.reset();
         }
       }}
     >
-      <DialogTrigger asChild>
-        {triggerButton || <Button>Add Group</Button>}
-      </DialogTrigger>
+      {!open && (
+        <DialogTrigger asChild>
+          {triggerButton || <Button>Add Group</Button>}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Create New Group</DialogTitle>

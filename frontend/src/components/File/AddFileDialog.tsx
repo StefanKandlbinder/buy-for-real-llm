@@ -37,10 +37,20 @@ const addFileSchema = z.object({
 
 type AddFileDialogProps = {
   group: NestedGroup;
+  triggerButton?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
-export function AddFileDialog({ group }: AddFileDialogProps) {
+export function AddFileDialog({
+  group,
+  triggerButton,
+  open,
+  onOpenChange,
+}: AddFileDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const controlledOpen = open !== undefined ? open : isOpen;
+  const controlledSetOpen = onOpenChange || setIsOpen;
   const [fileValidationError, setFileValidationError] = useState<string | null>(
     null
   );
@@ -84,9 +94,9 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
 
   return (
     <Dialog
-      open={isOpen}
+      open={controlledOpen}
       onOpenChange={(open) => {
-        setIsOpen(open);
+        controlledSetOpen(open);
         if (!open) {
           form.reset();
           reset();
@@ -94,12 +104,16 @@ export function AddFileDialog({ group }: AddFileDialogProps) {
         }
       }}
     >
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Upload className="w-4 h-4 mr-2" />
-          Upload File
-        </Button>
-      </DialogTrigger>
+      {!open && (
+        <DialogTrigger asChild>
+          {triggerButton || (
+            <Button variant="outline" size="sm">
+              <Upload className="w-4 h-4 mr-2" />
+              Upload File
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Upload File</DialogTitle>

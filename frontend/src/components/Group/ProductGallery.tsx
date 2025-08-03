@@ -2,6 +2,7 @@
 
 import { GroupNode } from "./GroupNode";
 import { AddGroupDialog } from "./AddGroupDialog";
+import { GroupBreadcrumb } from "./GroupBreadcrumb";
 import { useGroups } from "@/hooks/group/useGroups";
 import { useProducts } from "@/hooks/product/useProducts";
 import { Skeleton } from "../ui/skeleton";
@@ -9,12 +10,21 @@ import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
 interface ProductGalleryProps {
   initialData?: NestedGroup[];
+  currentGroupId?: number;
 }
 
-export function ProductGallery({ initialData }: ProductGalleryProps) {
+export function ProductGallery({
+  initialData,
+  currentGroupId,
+}: ProductGalleryProps) {
   const { groups, deleteGroupMutation, groupsQuery } = useGroups(initialData);
   const { createProductWithGroupMutation } = useProducts();
-  const rootGroups = groups?.filter((g) => g.parent_id === null) ?? [];
+
+  // If we have a current group ID, show only that group (children will be shown recursively by GroupNode)
+  // Otherwise, show root groups
+  const displayGroups = currentGroupId
+    ? groups?.filter((g) => g.id === currentGroupId) ?? []
+    : groups?.filter((g) => g.parent_id === null) ?? [];
 
   if (groupsQuery.isLoading) {
     return (
@@ -32,6 +42,12 @@ export function ProductGallery({ initialData }: ProductGalleryProps) {
 
   return (
     <div>
+      <div className="mb-4">
+        <GroupBreadcrumb
+          groups={groups ?? []}
+          currentGroupId={currentGroupId}
+        />
+      </div>
       <div className="flex justify-end mb-4">
         <AddGroupDialog
           groups={groups ?? []}
@@ -40,7 +56,7 @@ export function ProductGallery({ initialData }: ProductGalleryProps) {
           }
         />
       </div>
-      {rootGroups.map((group) => (
+      {displayGroups.map((group) => (
         <GroupNode
           key={group.id as number}
           group={group}
@@ -49,6 +65,7 @@ export function ProductGallery({ initialData }: ProductGalleryProps) {
           createGroupMutation={(values) =>
             createProductWithGroupMutation.mutate(values)
           }
+
         />
       ))}
     </div>

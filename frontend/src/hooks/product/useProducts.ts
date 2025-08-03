@@ -70,6 +70,7 @@ export function useProducts() {
         queryClient.setQueryData(groupsQueryKey, (oldData) => {
           const optimisticNewGroup = {
             name: newGroup.name,
+            slug: newGroup.slug || newGroup.name.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, ''),
             id: Date.now(),
             parent_id: newGroup.parentId ?? null,
             media: [],

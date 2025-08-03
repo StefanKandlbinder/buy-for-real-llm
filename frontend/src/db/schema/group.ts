@@ -13,6 +13,7 @@ import { media } from "./media";
 export const groups = pgTable("groups", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
   parentId: integer("parent_id").references((): AnyPgColumn => groups.id, {
     onDelete: "cascade",
   }),

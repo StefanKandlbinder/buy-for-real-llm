@@ -8,6 +8,13 @@
       "when": 1754145228882,
       "tag": "0000_charming_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1754217132288,
+      "tag": "0001_condemned_sue_storm",
+      "breakpoints": true
     }
   ]
 }
