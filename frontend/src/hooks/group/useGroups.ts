@@ -3,6 +3,7 @@ import { useTRPC } from "@/trpc/client/client";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { toast } from "sonner";
 import { useAsyncErrorHandler } from "@/components/Error/ErrorProvider";
+import { revalidateAdminPages } from "@/actions/revalidate";
 
 export function useGroups(initialData?: NestedGroup[]) {
   const trpc = useTRPC();
@@ -50,13 +51,15 @@ export function useGroups(initialData?: NestedGroup[]) {
         });
         return { previousGroups, loadingToast };
       },
-      onSuccess: (data, variables, context) => {
+      onSuccess: async (data, variables, context) => {
         toast.success(
           `Group "${variables.name}" has been created successfully.`,
           {
             id: context?.loadingToast,
           }
         );
+        // Revalidate server-side data
+        await revalidateAdminPages();
       },
       onError: (err, newGroup, context) => {
         if (context?.previousGroups) {
@@ -92,7 +95,7 @@ export function useGroups(initialData?: NestedGroup[]) {
         );
         return { previousGroups, groupName: groupToDelete?.name, loadingToast };
       },
-      onSuccess: (data, variables, context) => {
+      onSuccess: async (data, variables, context) => {
         if (data && data.success === false) {
           toast.error(
             data.message || "Failed to delete group. Please try again.",
@@ -110,6 +113,8 @@ export function useGroups(initialData?: NestedGroup[]) {
             id: context?.loadingToast,
           }
         );
+        // Revalidate server-side data
+        await revalidateAdminPages();
       },
       onError: (err, deletedGroup, context) => {
         if (context?.previousGroups) {

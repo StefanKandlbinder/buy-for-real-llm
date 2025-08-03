@@ -104,7 +104,8 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ initialGroups }: AppSidebarProps = {}) {
-  const { groups: clientGroups, createGroupMutation } = useGroups();
+  const { groups: clientGroups, createGroupMutation } =
+    useGroups(initialGroups);
   const pathname = usePathname();
 
   // Use server-fetched data if available, otherwise fall back to client data
