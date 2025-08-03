@@ -13,17 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarFooter,
 } from "@/components/ui/sidebar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { User2 } from "lucide-react";
-import { ChevronUp } from "lucide-react";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { AddGroupDialog } from "./Group/AddGroupDialog";
 import { useGroups } from "@/hooks/group/useGroups";
@@ -178,41 +168,6 @@ export function AppSidebar({ initialGroups }: AppSidebarProps = {}) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <SignedIn>
-          <UserButton />
-        </SignedIn>
-
-        <SignedOut>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton>
-                    <User2 />
-                    <ChevronUp className="ml-auto" />
-                  </SidebarMenuButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  side="top"
-                  className="w-[--radix-popper-anchor-width]"
-                >
-                  <DropdownMenuItem>
-                    <Link className="w-full h-full" href="/sign-in">
-                      Sign In
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Link className="w-full h-full" href="/sign-up">
-                      Sign Up
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SignedOut>
-      </SidebarFooter>
     </Sidebar>
   );
 }

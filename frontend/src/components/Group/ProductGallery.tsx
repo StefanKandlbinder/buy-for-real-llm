@@ -2,7 +2,6 @@
 
 import { GroupNode } from "./GroupNode";
 import { AddGroupDialog } from "./AddGroupDialog";
-import { GroupBreadcrumb } from "./GroupBreadcrumb";
 import { useGroups } from "@/hooks/group/useGroups";
 import { useProducts } from "@/hooks/product/useProducts";
 import { Skeleton } from "../ui/skeleton";
@@ -42,12 +41,6 @@ export function ProductGallery({
 
   return (
     <div>
-      <div className="mb-4">
-        <GroupBreadcrumb
-          groups={groups ?? []}
-          currentGroupId={currentGroupId}
-        />
-      </div>
       <div className="flex justify-end mb-4">
         <AddGroupDialog
           groups={groups ?? []}
@@ -65,7 +58,6 @@ export function ProductGallery({
           createGroupMutation={(values) =>
             createProductWithGroupMutation.mutate(values)
           }
-
         />
       ))}
     </div>
