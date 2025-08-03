@@ -8,5 +8,8 @@ declare global {
     metadata: {
       role?: Roles;
     };
+    publicMetadata: {
+      role?: Roles;
+    };
   }
 }
