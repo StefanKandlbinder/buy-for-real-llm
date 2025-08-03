@@ -1,5 +1,9 @@
-import { Image, Video } from "lucide-react";
+"use client";
+
+import { Video, Folder, FolderOpen, FolderDown, Plus } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -20,16 +24,12 @@ import {
 import { User2 } from "lucide-react";
 import { ChevronUp } from "lucide-react";
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { NestedGroup } from "@/trpc/server/routers/groups/router";
+import { AddGroupDialog } from "./Group/AddGroupDialog";
+import { useGroups } from "@/hooks/group/useGroups";
+import { cn } from "@/lib/utils";
 
 // Menu items.
-const products = [
-  {
-    title: "Images",
-    url: "/admin/products",
-    icon: Image,
-  },
-];
-
 const ads = [
   {
     title: "video",
@@ -37,7 +37,96 @@ const ads = [
     icon: Video,
   },
 ];
-export function AppSidebar() {
+
+interface GroupTreeItemProps {
+  group: NestedGroup;
+  allGroups: NestedGroup[];
+  currentGroupId?: number;
+  level?: number;
+}
+
+function GroupTreeItem({
+  group,
+  allGroups,
+  currentGroupId,
+  level = 0,
+}: GroupTreeItemProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const childGroups = allGroups.filter((g) => g.parent_id === group.id);
+  const hasChildren = childGroups.length > 0;
+  const isCurrentGroup = currentGroupId === group.id;
+
+  return (
+    <>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild className={cn(isCurrentGroup && "bg-muted")}>
+          <Link href={`/admin/products/${group.slug}`} scroll={false}>
+            {hasChildren ? (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsExpanded(!isExpanded);
+                }}
+                className="p-0 hover:bg-muted rounded"
+              >
+                {isExpanded ? (
+                  <FolderOpen className="h-4 w-4" />
+                ) : (
+                  <FolderDown className="h-4 w-4" />
+                )}
+              </button>
+            ) : (
+              <Folder className="h-4 w-4" />
+            )}
+            <span>{group.name}</span>
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      {hasChildren && isExpanded && (
+        <div className="ml-4">
+          {childGroups.map((childGroup) => (
+            <GroupTreeItem
+              key={childGroup.id}
+              group={childGroup}
+              allGroups={allGroups}
+              currentGroupId={currentGroupId}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+interface AppSidebarProps {
+  initialGroups?: NestedGroup[];
+}
+
+export function AppSidebar({ initialGroups }: AppSidebarProps = {}) {
+  const { groups: clientGroups, createGroupMutation } = useGroups();
+  const pathname = usePathname();
+
+  // Use server-fetched data if available, otherwise fall back to client data
+  const groups = initialGroups || clientGroups;
+  const rootGroups = groups?.filter((g) => g.parent_id === null) ?? [];
+
+  // Find the current group based on the pathname
+  const getCurrentGroupId = () => {
+    if (pathname === "/admin/products") return undefined;
+
+    const pathSegments = pathname.split("/");
+    const lastSegment = pathSegments[pathSegments.length - 1];
+
+    if (pathSegments[1] === "admin" && pathSegments[2] === "products") {
+      const currentGroup = groups?.find((group) => group.slug === lastSegment);
+      return currentGroup?.id;
+    }
+
+    return undefined;
+  };
+
+  const activeGroupId = getCurrentGroupId();
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
@@ -45,15 +134,27 @@ export function AppSidebar() {
           <SidebarGroupLabel>Products</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {products.map((product) => (
-                <SidebarMenuItem key={product.title}>
-                  <SidebarMenuButton asChild>
-                    <Link href={product.url} scroll={false}>
-                      <product.icon />
-                      <span>{product.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+              <SidebarMenuItem>
+                <AddGroupDialog
+                  groups={groups ?? []}
+                  createGroupMutation={(values) =>
+                    createGroupMutation.mutate(values)
+                  }
+                  triggerButton={
+                    <SidebarMenuButton>
+                      <Plus className="h-4 w-4" />
+                      <span>Add Group</span>
+                    </SidebarMenuButton>
+                  }
+                />
+              </SidebarMenuItem>
+              {rootGroups.map((group) => (
+                <GroupTreeItem
+                  key={group.id}
+                  group={group}
+                  allGroups={groups ?? []}
+                  currentGroupId={activeGroupId}
+                />
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
