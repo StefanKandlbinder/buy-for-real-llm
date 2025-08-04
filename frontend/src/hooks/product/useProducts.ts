@@ -4,10 +4,12 @@ import { toast } from "sonner";
 import { useAsyncErrorHandler } from "@/components/Error/ErrorProvider";
 import { TRPCClientErrorLike } from "@trpc/client";
 import { AppRouter } from "@/trpc/server";
+import { createInvalidators } from "@/trpc/client/utils";
 
 export function useProducts() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const invalidators = createInvalidators(queryClient, trpc);
   const productsQueryKey = trpc.products.getAllProducts.queryKey();
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
   const handleAsyncError = useAsyncErrorHandler();
@@ -51,8 +53,8 @@ export function useProducts() {
           throw err;
         }, "Failed to create product. Please try again.");
       },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: productsQueryKey });
+      onSettled: async () => {
+        await invalidators.productsCluster();
       },
     })
   );
@@ -70,7 +72,13 @@ export function useProducts() {
         queryClient.setQueryData(groupsQueryKey, (oldData) => {
           const optimisticNewGroup = {
             name: newGroup.name,
-            slug: newGroup.slug || newGroup.name.toLowerCase().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, ''),
+            slug:
+              newGroup.slug ||
+              newGroup.name
+                .toLowerCase()
+                .replace(/[^\w\s-]/g, "")
+                .replace(/[\s_-]+/g, "-")
+                .replace(/^-+|-+$/g, ""),
             id: Date.now(),
             parent_id: newGroup.parentId ?? null,
             media: [],
@@ -121,10 +129,8 @@ export function useProducts() {
           throw err;
         }, "Failed to create group and product. Please try again.");
       },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-        queryClient.invalidateQueries({ queryKey: productsQueryKey });
-        queryClient.invalidateQueries({ queryKey: trpc.groups.getGroupsWithProducts.queryKey() });
+      onSettled: async () => {
+        await invalidators.productsCluster();
       },
     })
   );
@@ -170,8 +176,8 @@ export function useProducts() {
           throw err;
         }, "Failed to update product. Please try again.");
       },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: productsQueryKey });
+      onSettled: async () => {
+        await invalidators.productsCluster();
       },
     })
   );
@@ -181,9 +187,6 @@ export function useProducts() {
       onMutate: async (deletedProduct) => {
         await queryClient.cancelQueries({ queryKey: productsQueryKey });
         const previousProducts = queryClient.getQueryData(productsQueryKey);
-        // const productToDelete = previousProducts?.find(
-        //   (p) => p.id === deletedProduct.id
-        // );
 
         // Show loading toast
         const loadingToast = toast.loading(`Deleting product...`);
@@ -216,8 +219,8 @@ export function useProducts() {
           throw err;
         }, "Failed to delete product. Please try again.");
       },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: productsQueryKey });
+      onSettled: async () => {
+        await invalidators.productsCluster();
       },
     })
   );

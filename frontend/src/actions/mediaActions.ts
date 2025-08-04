@@ -2,7 +2,7 @@
 
 import { pinata } from "@/lib/config";
 import { api } from "@/trpc/server/server";
-import { revalidatePath } from "next/cache";
+import { revalidateMedia } from "./revalidate";
 
 export async function uploadMediaAction(formData: FormData) {
   const file = formData.get("file") as File;
@@ -37,7 +37,8 @@ export async function uploadMediaAction(formData: FormData) {
       groupId,
     });
 
-    revalidatePath("/products");
+    // Revalidate all media-related data
+    await revalidateMedia();
 
     return newMedia;
   } catch (error) {

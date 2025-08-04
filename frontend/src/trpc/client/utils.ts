@@ -1,3 +1,6 @@
+import { QueryClient } from "@tanstack/react-query";
+import { createTRPCContext } from "@/trpc/tanstack-react-query";
+
 function getBaseUrl() {
   if (typeof window !== "undefined") return ""; // browser should use relative url
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`; // SSR should use vercel url
@@ -6,4 +9,52 @@ function getBaseUrl() {
 
 export function getUrl() {
   return getBaseUrl() + "/api/trpc";
+}
+
+// Helpers to batch-invalidate related query clusters
+export function createInvalidators(
+  queryClient: QueryClient,
+  trpc: ReturnType<typeof createTRPCContext>
+) {
+  return {
+    productsCluster: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: trpc.products.getAllProducts.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getGroupsWithProducts.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getNestedGroups.queryKey(),
+        }),
+      ]);
+    },
+    advertisementsCluster: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: trpc.advertisements.getAllAdvertisements.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getGroupsWithAdvertisements.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getNestedGroups.queryKey(),
+        }),
+      ]);
+    },
+    groupsCluster: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getNestedGroups.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getGroupsWithProducts.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getGroupsWithAdvertisements.queryKey(),
+        }),
+      ]);
+    },
+  };
 }

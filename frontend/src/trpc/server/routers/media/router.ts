@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { insertMediaSchema, updateMediaSchema } from "./validation";
 import { pinata } from "@/lib/config";
+import { revalidatePath } from "next/cache";
 
 // Helper to delete images from Pinata and return status
 export async function deleteImagesFromPinata(imageIds: string[]) {
@@ -45,6 +46,10 @@ export const mediaRouter = router({
           ...input,
         })
         .returning();
+
+      // Revalidate admin layout-related pages that surface groups/media
+      revalidatePath("/admin");
+
       return newImage;
     }),
 
@@ -57,6 +62,10 @@ export const mediaRouter = router({
         .set({ ...input, updatedAt: new Date() })
         .where(eq(media.id, input.id))
         .returning();
+
+      // Revalidate admin layout-related pages that surface groups/media
+      revalidatePath("/admin");
+
       return updatedImage;
     }),
 
@@ -65,6 +74,10 @@ export const mediaRouter = router({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.delete(media).where(eq(media.id, input.id));
+
+      // Revalidate admin layout-related pages that surface groups/media
+      revalidatePath("/admin");
+
       return { success: true };
     }),
 

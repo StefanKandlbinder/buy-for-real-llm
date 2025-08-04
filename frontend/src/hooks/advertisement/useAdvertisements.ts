@@ -4,10 +4,12 @@ import { toast } from "sonner";
 import { useAsyncErrorHandler } from "@/components/Error/ErrorProvider";
 import { TRPCClientErrorLike } from "@trpc/client";
 import { AppRouter } from "@/trpc/server";
+import { createInvalidators } from "@/trpc/client/utils";
 
 export function useAdvertisements() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const invalidators = createInvalidators(queryClient, trpc);
   const advertisementsQueryKey =
     trpc.advertisements.getAllAdvertisements.queryKey();
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
@@ -59,8 +61,8 @@ export function useAdvertisements() {
           throw err;
         }, "Failed to create advertisement. Please try again.");
       },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: advertisementsQueryKey });
+      onSettled: async () => {
+        await invalidators.advertisementsCluster();
       },
     })
   );
@@ -140,10 +142,8 @@ export function useAdvertisements() {
           throw err;
         }, "Failed to create group and advertisement. Please try again.");
       },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-        queryClient.invalidateQueries({ queryKey: advertisementsQueryKey });
-        queryClient.invalidateQueries({ queryKey: trpc.groups.getGroupsWithAdvertisements.queryKey() });
+      onSettled: async () => {
+        await invalidators.advertisementsCluster();
       },
     })
   );
@@ -194,8 +194,8 @@ export function useAdvertisements() {
           throw err;
         }, "Failed to update advertisement. Please try again.");
       },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: advertisementsQueryKey });
+      onSettled: async () => {
+        await invalidators.advertisementsCluster();
       },
     })
   );
@@ -243,8 +243,8 @@ export function useAdvertisements() {
           throw err;
         }, "Failed to delete advertisement. Please try again.");
       },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: advertisementsQueryKey });
+      onSettled: async () => {
+        await invalidators.advertisementsCluster();
       },
     })
   );

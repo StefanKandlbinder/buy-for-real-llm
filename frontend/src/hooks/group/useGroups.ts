@@ -10,6 +10,20 @@ export function useGroups(initialData?: NestedGroup[]) {
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
   const handleAsyncError = useAsyncErrorHandler();
 
+  const invalidateGroupsCluster = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: trpc.groups.getNestedGroups.queryKey(),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: trpc.groups.getGroupsWithProducts.queryKey(),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: trpc.groups.getGroupsWithAdvertisements.queryKey(),
+      }),
+    ]);
+  };
+
   const groupsQuery = useQuery(
     trpc.groups.getNestedGroups.queryOptions(undefined, {
       refetchOnWindowFocus: false,
@@ -22,15 +36,19 @@ export function useGroups(initialData?: NestedGroup[]) {
     trpc.groups.createGroup.mutationOptions({
       onMutate: async (newGroup) => {
         // Show loading toast
-        const loadingToast = toast.loading(
-          `Creating group "${newGroup.name}"...`
-        );
+        const loadingToast = toast.loading(`Creating group...`);
 
         await queryClient.cancelQueries({ queryKey: groupsQueryKey });
         const previousGroups = queryClient.getQueryData(groupsQueryKey);
+
+        // Find parent group for level calculation
+        const parentGroup = previousGroups?.find(
+          (g) => g.id === newGroup.parentId
+        );
+
+        // Optimistic update for groups
         queryClient.setQueryData(groupsQueryKey, (oldData) => {
-          const parentGroup = oldData?.find((g) => g.id === newGroup.parentId);
-          const optimisticNewGroup: NestedGroup = {
+          const optimisticNewGroup = {
             name: newGroup.name,
             slug:
               newGroup.slug ||
@@ -67,8 +85,8 @@ export function useGroups(initialData?: NestedGroup[]) {
           throw err;
         }, "Failed to create group. Please try again.");
       },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+      onSettled: async () => {
+        await invalidateGroupsCluster();
       },
     })
   );
@@ -120,8 +138,8 @@ export function useGroups(initialData?: NestedGroup[]) {
           throw err;
         }, "Failed to delete group. Please try again.");
       },
-      onSettled: () => {
-        queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+      onSettled: async () => {
+        await invalidateGroupsCluster();
       },
     })
   );

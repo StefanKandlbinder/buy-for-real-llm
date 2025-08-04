@@ -3,6 +3,7 @@ import { protectedProcedure, router } from "@/trpc/server/trpc";
 import { products } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { createProductSchema, updateProductSchema } from "./validation";
+import { revalidatePath } from "next/cache";
 
 export const productsRouter = router({
   createProduct: protectedProcedure
@@ -15,6 +16,11 @@ export const productsRouter = router({
           isActive: input.isActive ?? true,
         })
         .returning();
+
+      // Revalidate affected admin product pages
+      revalidatePath("/admin/products");
+      revalidatePath("/admin/products/[...slug]");
+
       return newProduct;
     }),
 
@@ -27,7 +33,6 @@ export const productsRouter = router({
         isActive?: boolean;
       } = {};
 
-      // Manually assign each field to avoid type issues
       if (updateData.groupId !== undefined)
         updateValues.groupId = updateData.groupId;
       if (updateData.isActive !== undefined)
@@ -38,6 +43,11 @@ export const productsRouter = router({
         .set({ ...updateValues, updatedAt: new Date() })
         .where(eq(products.id, id))
         .returning();
+
+      // Revalidate affected admin product pages
+      revalidatePath("/admin/products");
+      revalidatePath("/admin/products/[...slug]");
+
       return updatedProduct;
     }),
 
@@ -45,6 +55,11 @@ export const productsRouter = router({
     .input(z.object({ id: z.number() }))
     .mutation(async ({ ctx, input }) => {
       await ctx.db.delete(products).where(eq(products.id, input.id));
+
+      // Revalidate affected admin product pages
+      revalidatePath("/admin/products");
+      revalidatePath("/admin/products/[...slug]");
+
       return { success: true };
     }),
 

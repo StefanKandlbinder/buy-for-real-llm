@@ -6,6 +6,7 @@ import {
   createAdvertisementSchema,
   updateAdvertisementSchema,
 } from "./validation";
+import { revalidatePath } from "next/cache";
 
 export const advertisementsRouter = router({
   createAdvertisement: protectedProcedure
@@ -18,6 +19,11 @@ export const advertisementsRouter = router({
           isActive: input.isActive ?? true,
         })
         .returning();
+
+      // Revalidate affected admin advertisement pages
+      revalidatePath("/admin/advertisements");
+      revalidatePath("/admin/advertisements/[...slug]");
+
       return newAdvertisement;
     }),
 
@@ -30,7 +36,6 @@ export const advertisementsRouter = router({
         isActive?: boolean;
       } = {};
 
-      // Manually assign each field to avoid type issues
       if (updateData.groupId !== undefined)
         updateValues.groupId = updateData.groupId;
       if (updateData.isActive !== undefined)
@@ -41,6 +46,11 @@ export const advertisementsRouter = router({
         .set({ ...updateValues, updatedAt: new Date() })
         .where(eq(advertisements.id, id))
         .returning();
+
+      // Revalidate affected admin advertisement pages
+      revalidatePath("/admin/advertisements");
+      revalidatePath("/admin/advertisements/[...slug]");
+
       return updatedAdvertisement;
     }),
 
@@ -50,6 +60,11 @@ export const advertisementsRouter = router({
       await ctx.db
         .delete(advertisements)
         .where(eq(advertisements.id, input.id));
+
+      // Revalidate affected admin advertisement pages
+      revalidatePath("/admin/advertisements");
+      revalidatePath("/admin/advertisements/[...slug]");
+
       return { success: true };
     }),
 

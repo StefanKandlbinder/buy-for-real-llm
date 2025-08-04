@@ -17,6 +17,20 @@ export function useMedia() {
   const queryClient = useQueryClient();
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
 
+  async function invalidateGroupsCluster() {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: trpc.groups.getNestedGroups.queryKey(),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: trpc.groups.getGroupsWithProducts.queryKey(),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: trpc.groups.getGroupsWithAdvertisements.queryKey(),
+      }),
+    ]);
+  }
+
   const createMutation = useMutation({
     mutationFn: uploadMediaAction,
     onMutate: async (variables) => {
@@ -33,8 +47,9 @@ export function useMedia() {
 
       // Optimistic update: Add a temporary media item with loading state
       if (previousGroups) {
+        const optimisticId = `temp-${Date.now()}`;
         const optimisticMedia = {
-          id: `temp-${Date.now()}`, // Temporary ID
+          id: optimisticId, // Temporary ID
           url: URL.createObjectURL(file), // Local blob URL for preview
           label: label || file.name,
           description: description || "",
@@ -51,9 +66,15 @@ export function useMedia() {
         });
 
         queryClient.setQueryData(groupsQueryKey, updatedGroups);
+        return { previousGroups, loadingToast, tempId: optimisticId, groupId };
       }
 
-      return { previousGroups, loadingToast, tempId: `temp-${Date.now()}` };
+      return {
+        previousGroups,
+        loadingToast,
+        tempId: `temp-${Date.now()}`,
+        groupId,
+      };
     },
     onSuccess: (data, variables, context) => {
       if (data && "error" in data && data.error) {
@@ -65,34 +86,33 @@ export function useMedia() {
       }
 
       const file = variables.get("file") as File;
-      const groupId = Number(variables.get("groupId"));
+      const groupId = context?.groupId as number;
 
-      // Replace the optimistic update with the real data
+      // Replace the optimistic update with the real data (only in affected group)
       if (data && !("error" in data)) {
-        const currentGroups =
-          queryClient.getQueryData<GroupQueryOutput>(groupsQueryKey);
-        if (currentGroups) {
-          const updatedGroups = currentGroups.map((group) => {
-            if (group.id === groupId) {
+        queryClient.setQueryData<GroupQueryOutput>(
+          groupsQueryKey,
+          (current) => {
+            if (!current) return current;
+            return current.map((group) => {
+              if (group.id !== groupId) return group;
               return {
                 ...group,
                 media:
-                  group.media?.map((media) =>
-                    media.id === context?.tempId
+                  group.media?.map((m) =>
+                    m.id === context?.tempId
                       ? {
                           id: data.id,
                           label: data.label || "",
                           url: data.url,
                           description: data.description || "",
                         }
-                      : media
+                      : m
                   ) || [],
               };
-            }
-            return group;
-          });
-          queryClient.setQueryData(groupsQueryKey, updatedGroups);
-        }
+            });
+          }
+        );
       }
 
       toast.success(`File "${file.name}" uploaded successfully.`, {
@@ -107,8 +127,8 @@ export function useMedia() {
         id: context?.loadingToast,
       });
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+    onSettled: async () => {
+      await invalidateGroupsCluster();
     },
   });
 
@@ -162,8 +182,8 @@ export function useMedia() {
         id: context?.loadingToast,
       });
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+    onSettled: async () => {
+      await invalidateGroupsCluster();
     },
   });
 
@@ -204,8 +224,8 @@ export function useMedia() {
         id: context?.loadingToast,
       });
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: groupsQueryKey });
+    onSettled: async () => {
+      await invalidateGroupsCluster();
     },
   });
 

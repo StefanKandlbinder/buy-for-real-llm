@@ -9,6 +9,7 @@ import {
 } from "./validation";
 import { Context } from "@/trpc/server/context";
 import { deleteImagesFromPinata } from "../media/router";
+import { revalidatePath } from "next/cache";
 
 // Helper to recursively collect all child group IDs
 async function getAllChildGroupIds(
@@ -176,6 +177,12 @@ export const groupsRouter = router({
           parentId: input.parentId ?? null,
         })
         .returning();
+
+      // Revalidate admin layout and dependent pages (sidebar/breadcrumb + lists)
+      revalidatePath("/admin");
+      revalidatePath("/admin/products");
+      revalidatePath("/admin/advertisements");
+
       return newGroup;
     }),
 
@@ -187,6 +194,12 @@ export const groupsRouter = router({
         .set({ name: input.name, updatedAt: new Date() })
         .where(eq(groups.id, input.id))
         .returning();
+
+      // Revalidate admin layout and dependent pages
+      revalidatePath("/admin");
+      revalidatePath("/admin/products");
+      revalidatePath("/admin/advertisements");
+
       return updatedGroup;
     }),
 
@@ -222,6 +235,11 @@ export const groupsRouter = router({
       // Only delete the parent group if all Pinata deletions succeeded
       // Database cascade will handle deleting child groups and their media
       await ctx.db.delete(groups).where(eq(groups.id, input.id));
+
+      // Revalidate admin layout and dependent pages
+      revalidatePath("/admin");
+      revalidatePath("/admin/products");
+      revalidatePath("/admin/advertisements");
 
       return {
         success: true,
