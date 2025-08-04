@@ -1,6 +1,4 @@
 import { QueryClient } from "@tanstack/react-query";
-import { type inferRouterOutputs } from "@trpc/server";
-import { type AppRouter } from "@/trpc/server";
 
 function getBaseUrl() {
   if (typeof window !== "undefined") return ""; // browser should use relative url

@@ -3,27 +3,23 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrashIcon, MoreVertical, Upload, FolderPlus } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { NestedGroup } from "@/trpc/server/routers/groups/router";
-import { AddFileDialog } from "../File/AddFileDialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { AddGroupDialog } from "./AddGroupDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuItem,
   DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { TrashIcon, MoreVertical, Upload, FolderPlus } from "lucide-react";
+import Link from "next/link";
+import { NestedGroup } from "@/trpc/server/routers/groups/router";
+import { AddFileDialog } from "../File/AddFileDialog";
+import { AddGroupDialog } from "./AddGroupDialog";
 import { insertGroupSchema } from "@/trpc/server/routers/groups/validation";
 import { z } from "zod";
+import { MediaCard } from "./MediaCard";
+import { useMedia } from "@/hooks/file/useMedia";
 
 export function GroupNode({
   group,
@@ -38,16 +34,17 @@ export function GroupNode({
   createGroupMutation: (values: z.infer<typeof insertGroupSchema>) => void;
   contentType?: "products" | "advertisements";
 }) {
-  const childGroups = allGroups.filter((g) => g.parent_id === group.id);
   const [showAddFileDialog, setShowAddFileDialog] = useState(false);
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
+  const { deleteMutation } = useMedia();
 
-  // Calculate the full path for this group by traversing up the parent chain
+  // Get the child groups of the current group
+  const childGroups = allGroups.filter((g) => g.parent_id === group.id);
+
   const calculateGroupPath = (targetGroup: NestedGroup): string => {
     const path: string[] = [];
     let currentGroup = targetGroup;
 
-    // Build the path from the target group up to the root
     while (currentGroup) {
       path.unshift(currentGroup.slug);
       const parent = allGroups.find((g) => g.id === currentGroup.parent_id);
@@ -58,6 +55,10 @@ export function GroupNode({
   };
 
   const groupPath = calculateGroupPath(group);
+
+  const handleDeleteMedia = (mediaId: string) => {
+    deleteMutation.mutate({ id: mediaId });
+  };
 
   return (
     <Card className="mt-4">
@@ -98,7 +99,7 @@ export function GroupNode({
                   }
                 }}
               >
-                <TrashIcon className="h-4 w-4 mr-2" />
+                <TrashIcon className="h-4 w-4 mr-2 text-destructive" />
                 Delete Group
               </DropdownMenuItem>
             </DropdownMenuGroup>
@@ -127,28 +128,14 @@ export function GroupNode({
       )}
 
       <CardContent>
-        {/* Render images in this group */}
+        {/* Render media in this group */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {group.media?.map((image) => (
-            <div key={image.id} className="relative aspect-square">
-              <Image
-                src={image.url}
-                alt={image.label ?? "Image"}
-                className="rounded-md object-cover w-full h-full"
-                width={200}
-                height={200}
-              />
-              <p className="absolute bottom-0 left-0 right-0 bg-sidebar-accent bg-opacity-10 text-sidebar-accent-foreground text-xs px-4 py-3 rounded-b-md truncate min-h-10">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span title={image.description}>{image.label}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{image.description}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </p>
-            </div>
+          {group.media?.map((media) => (
+            <MediaCard
+              key={media.id}
+              media={media}
+              onDelete={() => handleDeleteMedia(media.id)}
+            />
           ))}
         </div>
 

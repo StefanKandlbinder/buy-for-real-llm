@@ -73,6 +73,35 @@ export const mediaRouter = router({
   deleteImage: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // First, get the media record to get the Pinata ID
+      const [mediaRecord] = await ctx.db
+        .select()
+        .from(media)
+        .where(eq(media.id, input.id));
+
+      if (!mediaRecord) {
+        throw new Error("Media not found");
+      }
+
+      // Delete from Pinata first
+      try {
+        const pinataResult = await pinata.files.public.delete([input.id]);
+        if (Array.isArray(pinataResult)) {
+          const failed = pinataResult.filter((res) => res.status !== "OK");
+          if (failed.length > 0) {
+            throw new Error(
+              "Failed to delete file from Pinata. Please try again or check your Pinata dashboard."
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Failed to delete from Pinata:", error);
+        throw new Error(
+          "Failed to delete file from Pinata. Please try again or check your Pinata dashboard."
+        );
+      }
+
+      // Then delete from database
       await ctx.db.delete(media).where(eq(media.id, input.id));
 
       // Revalidate admin layout-related pages that surface groups/media

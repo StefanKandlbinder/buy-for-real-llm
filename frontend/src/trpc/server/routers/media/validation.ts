@@ -9,6 +9,7 @@ export const insertMediaSchema = createInsertSchema(media, {
   url: z.url(),
   label: z.string(),
   description: z.string().optional(),
+  mediaType: z.enum(["image", "video"]).default("image"),
 }).omit({
   createdAt: true,
   updatedAt: true,
@@ -20,4 +21,5 @@ export const updateMediaSchema = z.object({
   label: z.string().min(1).optional(),
   description: z.string().min(1).optional(),
   url: z.string().url().optional(),
+  mediaType: z.enum(["image", "video"]).optional(),
 });

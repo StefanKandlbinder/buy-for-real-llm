@@ -21,6 +21,7 @@ export const media = pgTable("media", {
   label: varchar({ length: 128 }),
   url: text("url").notNull(),
   description: varchar({ length: 255 }),
+  mediaType: varchar("media_type", { length: 20 }).notNull().default("image"), // "image" or "video"
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

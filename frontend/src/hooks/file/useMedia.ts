@@ -53,6 +53,7 @@ export function useMedia() {
           url: URL.createObjectURL(file), // Local blob URL for preview
           label: label || file.name,
           description: description || "",
+          mediaType: file.type.startsWith("video/") ? "video" : "image",
         };
 
         const updatedGroups = previousGroups.map((group) => {
@@ -106,6 +107,11 @@ export function useMedia() {
                           label: data.label || "",
                           url: data.url,
                           description: data.description || "",
+                          mediaType:
+                            data.mediaType ||
+                            (file.type.startsWith("video/")
+                              ? "video"
+                              : "image"),
                         }
                       : m
                   ) || [],

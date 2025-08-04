@@ -118,8 +118,8 @@ export function AddFileDialog({
         <DialogHeader>
           <DialogTitle>Upload File</DialogTitle>
           <DialogDescription>
-            Select a file (max {maxFileSizeKB}KB) and optionally provide a label
-            and description.
+            Select an image or video file (max {maxFileSizeKB}MB) and optionally
+            provide a label and description.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -133,7 +133,7 @@ export function AddFileDialog({
                   <FormControl>
                     <Input
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       ref={fileInputRef}
                       onChange={(e) => {
                         const file = e.target.files?.[0];

@@ -15,15 +15,22 @@ export async function uploadMediaAction(formData: FormData) {
   }
 
   // Check file size limit using environment variable
-  const maxSizeKB = parseInt(process.env.NEXT_PUBLIC_MAX_FILE_SIZE_KB || "300");
+  // For video uploads, we use a larger default limit
+  const maxSizeKB = parseInt(
+    process.env.NEXT_PUBLIC_MAX_FILE_SIZE_KB || "51200"
+  ); // 50MB default
   const maxSizeInBytes = maxSizeKB * 1024;
   if (file.size > maxSizeInBytes) {
     return {
-      error: `File size exceeds the ${maxSizeKB}KB limit. Your file is ${Math.round(
-        file.size / 1024
-      )}KB.`,
+      error: `File size exceeds the ${Math.round(
+        maxSizeKB / 1024
+      )}MB limit. Your file is ${Math.round(file.size / (1024 * 1024))}MB.`,
     };
   }
+
+  // Determine media type based on file type
+  const isVideo = file.type.startsWith("video/");
+  const mediaType = isVideo ? "video" : "image";
 
   try {
     const { cid, id } = await pinata.upload.public.file(file);
@@ -35,6 +42,7 @@ export async function uploadMediaAction(formData: FormData) {
       label,
       description,
       groupId,
+      mediaType,
     });
 
     // Revalidate all media-related data

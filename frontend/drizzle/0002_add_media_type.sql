@@ -1,0 +1,1 @@
+ALTER TABLE "media" ADD COLUMN IF NOT EXISTS "media_type" varchar(20) NOT NULL DEFAULT 'image'; 

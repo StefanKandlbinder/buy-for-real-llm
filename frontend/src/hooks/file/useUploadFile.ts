@@ -8,16 +8,17 @@ export function useUploadFile() {
   const { createMutation } = useMedia();
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  // For video uploads, we use a larger default limit
   const maxFileSizeKB = parseInt(
-    process.env.NEXT_PUBLIC_MAX_FILE_SIZE_KB || "300"
+    process.env.NEXT_PUBLIC_MAX_FILE_SIZE_KB || "51200" // 50MB default
   );
   const maxFileSizeBytes = maxFileSizeKB * 1024;
 
   const validateFile = (file: File): string | null => {
     if (file.size > maxFileSizeBytes) {
-      return `File size exceeds the ${maxFileSizeKB}KB limit. Your file is ${Math.round(
-        file.size / 1024
-      )}KB.`;
+      return `File size exceeds the ${Math.round(
+        maxFileSizeKB / 1024
+      )}MB limit. Your file is ${Math.round(file.size / (1024 * 1024))}MB.`;
     }
     return null;
   };
@@ -57,6 +58,6 @@ export function useUploadFile() {
     error: createMutation.error?.message || validationError,
     reset,
     validateFile,
-    maxFileSizeKB,
+    maxFileSizeKB: Math.round(maxFileSizeKB / 1024), // Return in MB for display
   };
 }
