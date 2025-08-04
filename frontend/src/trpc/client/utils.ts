@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
-import { createTRPCContext } from "@/trpc/tanstack-react-query";
+import { type inferRouterOutputs } from "@trpc/server";
+import { type AppRouter } from "@/trpc/server";
 
 function getBaseUrl() {
   if (typeof window !== "undefined") return ""; // browser should use relative url
@@ -14,7 +15,7 @@ export function getUrl() {
 // Helpers to batch-invalidate related query clusters
 export function createInvalidators(
   queryClient: QueryClient,
-  trpc: ReturnType<typeof createTRPCContext>
+  trpc: ReturnType<typeof import("@/trpc/client/client").useTRPC>
 ) {
   return {
     productsCluster: async () => {
