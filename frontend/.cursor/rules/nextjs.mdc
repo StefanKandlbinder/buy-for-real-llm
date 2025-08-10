@@ -76,14 +76,16 @@ pnpm dev
 
 ```
 src/
-├── app/                 # Next.js App Router pages
-├── components/          # Reusable UI components
-├── hooks/              # Custom React hooks
-├── lib/               # Utility libraries and configurations
-├── trpc/              # tRPC server and client setup
-├── db/                # Database schema and client
-├── actions/           # Next.js Server Actions
-└── types/             # TypeScript type definitions
+├── app/                 # Next.js App Router (thin, delegates to features)
+├── features/            # Domain modules (groups, products, advertisements, media)
+│   └── <feature>/{components,hooks,api,validation,lib}
+├── shared/              # Cross-feature components and hooks
+├── components/ui/       # shadcn/ui primitives
+├── lib/                 # Utility libraries and configurations
+├── trpc/                # tRPC server and client setup
+├── db/                  # Database schema and client
+├── actions/             # Next.js Server Actions
+└── types/               # TypeScript type definitions
 ```
 
 ### Key Patterns
