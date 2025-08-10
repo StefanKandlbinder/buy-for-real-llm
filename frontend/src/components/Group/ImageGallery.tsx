@@ -11,8 +11,13 @@ interface ImageGalleryProps {
 }
 
 export function ImageGallery({ initialData }: ImageGalleryProps) {
-  const { groups, createGroupMutation, deleteGroupMutation, groupsQuery } =
-    useGroups(initialData);
+  const {
+    groups,
+    createGroupMutation,
+    deleteGroupMutation,
+    updateGroupMutation,
+    groupsQuery,
+  } = useGroups(initialData);
   const rootGroups = groups?.filter((g) => g.parent_id === null) ?? [];
 
   if (groupsQuery.isLoading) {
@@ -44,6 +49,7 @@ export function ImageGallery({ initialData }: ImageGalleryProps) {
           allGroups={groups ?? []}
           deleteGroupMutation={(values) => deleteGroupMutation.mutate(values)}
           createGroupMutation={(values) => createGroupMutation.mutate(values)}
+          updateGroupMutation={(values) => updateGroupMutation.mutate(values)}
         />
       ))}
     </div>

@@ -17,13 +17,14 @@ export function ProductGallery({
   initialData,
   currentGroupId,
 }: ProductGalleryProps) {
-  const { groups, deleteGroupMutation, groupsQuery } = useGroups(initialData);
+  const { groups, deleteGroupMutation, updateGroupMutation, groupsQuery } =
+    useGroups(initialData);
   const { productGroups } = useProductGroups(initialData);
   const { createProductWithGroupMutation } = useProducts();
 
   // Use filtered product groups instead of all groups
   const groupsToDisplay = productGroups || groups;
-  
+
   // If we have a current group ID, show only that group (children will be shown recursively by GroupNode)
   // Otherwise, show root groups
   const displayGroups = currentGroupId
@@ -63,6 +64,7 @@ export function ProductGallery({
           createGroupMutation={(values) =>
             createProductWithGroupMutation.mutate(values)
           }
+          updateGroupMutation={(values) => updateGroupMutation.mutate(values)}
           contentType="products"
         />
       ))}

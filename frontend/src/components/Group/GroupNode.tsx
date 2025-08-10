@@ -11,12 +11,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TrashIcon, MoreVertical, Upload, FolderPlus } from "lucide-react";
+import {
+  TrashIcon,
+  MoreVertical,
+  Upload,
+  FolderPlus,
+  Pencil,
+} from "lucide-react";
 import Link from "next/link";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { AddFileDialog } from "../File/AddFileDialog";
 import { AddGroupDialog } from "./AddGroupDialog";
-import { insertGroupSchema } from "@/trpc/server/routers/groups/validation";
+import { UpdateGroupDialog } from "./UpdateGroupDialog";
+import {
+  insertGroupSchema,
+  updateGroupSchema,
+} from "@/trpc/server/routers/groups/validation";
 import { z } from "zod";
 import { MediaCard } from "./MediaCard";
 import { useMedia } from "@/hooks/file/useMedia";
@@ -27,16 +37,19 @@ export function GroupNode({
   allGroups,
   deleteGroupMutation,
   createGroupMutation,
+  updateGroupMutation,
   contentType = "products",
 }: {
   group: NestedGroup;
   allGroups: NestedGroup[];
   deleteGroupMutation: (value: { id: number }) => void;
   createGroupMutation: (values: z.infer<typeof insertGroupSchema>) => void;
+  updateGroupMutation: (values: z.infer<typeof updateGroupSchema>) => void;
   contentType?: "products" | "advertisements";
 }) {
   const [showAddFileDialog, setShowAddFileDialog] = useState(false);
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
+  const [showUpdateGroupDialog, setShowUpdateGroupDialog] = useState(false);
   const { deleteMutation } = useMedia();
   const confirm = useConfirm();
 
@@ -90,6 +103,10 @@ export function GroupNode({
                 <FolderPlus className="h-4 w-4 mr-2" />
                 Add Group
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowUpdateGroupDialog(true)}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Update Group
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
@@ -133,6 +150,14 @@ export function GroupNode({
           onOpenChange={setShowAddGroupDialog}
         />
       )}
+      {showUpdateGroupDialog && (
+        <UpdateGroupDialog
+          group={group}
+          updateGroupMutation={(values) => updateGroupMutation(values)}
+          open={showUpdateGroupDialog}
+          onOpenChange={setShowUpdateGroupDialog}
+        />
+      )}
 
       <CardContent>
         {/* Render media in this group */}
@@ -155,6 +180,7 @@ export function GroupNode({
             allGroups={allGroups}
             deleteGroupMutation={deleteGroupMutation}
             createGroupMutation={createGroupMutation}
+            updateGroupMutation={updateGroupMutation}
             contentType={contentType}
           />
         ))}

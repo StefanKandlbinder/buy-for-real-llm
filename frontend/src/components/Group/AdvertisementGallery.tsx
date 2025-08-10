@@ -17,13 +17,14 @@ export function AdvertisementGallery({
   initialData,
   currentGroupId,
 }: AdvertisementGalleryProps) {
-  const { groups, deleteGroupMutation, groupsQuery } = useGroups(initialData);
+  const { groups, deleteGroupMutation, updateGroupMutation, groupsQuery } =
+    useGroups(initialData);
   const { advertisementGroups } = useAdvertisementGroups(initialData);
   const { createAdvertisementWithGroupMutation } = useAdvertisements();
 
   // Use filtered advertisement groups instead of all groups
   const groupsToDisplay = advertisementGroups || groups;
-  
+
   // If we have a current group ID, show only that group (children will be shown recursively by GroupNode)
   // Otherwise, show root groups
   const displayGroups = currentGroupId
@@ -63,6 +64,7 @@ export function AdvertisementGallery({
           createGroupMutation={(values) =>
             createAdvertisementWithGroupMutation.mutate(values)
           }
+          updateGroupMutation={(values) => updateGroupMutation.mutate(values)}
           contentType="advertisements"
         />
       ))}

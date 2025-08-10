@@ -144,10 +144,55 @@ export function useGroups(initialData?: NestedGroup[]) {
     })
   );
 
+  const updateGroupMutation = useMutation(
+    trpc.groups.updateGroup.mutationOptions({
+      onMutate: async (updatedGroup) => {
+        await queryClient.cancelQueries({ queryKey: groupsQueryKey });
+        const previousGroups =
+          queryClient.getQueryData<NestedGroup[]>(groupsQueryKey);
+
+        const target = previousGroups?.find((g) => g.id === updatedGroup.id);
+        const loadingToast = toast.loading(
+          `Renaming group "${target?.name ?? "Untitled"}"...`
+        );
+
+        queryClient.setQueryData(
+          groupsQueryKey,
+          (oldData: NestedGroup[] | undefined) =>
+            oldData?.map((g) =>
+              g.id === updatedGroup.id ? { ...g, name: updatedGroup.name } : g
+            ) ?? []
+        );
+
+        return { previousGroups, loadingToast, oldName: target?.name };
+      },
+      onSuccess: (data, variables, context) => {
+        toast.success(
+          `Group "${context?.oldName ?? "Untitled"}" renamed to "${
+            variables.name
+          }".`,
+          { id: context?.loadingToast }
+        );
+      },
+      onError: (err, variables, context) => {
+        if (context?.previousGroups) {
+          queryClient.setQueryData(groupsQueryKey, context.previousGroups);
+        }
+        handleAsyncError(() => {
+          throw err;
+        }, "Failed to update group. Please try again.");
+      },
+      onSettled: async () => {
+        await invalidateGroupsCluster();
+      },
+    })
+  );
+
   return {
     groups: groupsQuery.data,
     groupsQuery,
     createGroupMutation,
     deleteGroupMutation,
+    updateGroupMutation,
   };
 }
