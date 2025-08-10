@@ -19,6 +19,8 @@ import {
   Trash2,
   ExternalLink,
   Play,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import {
   Tooltip,
@@ -26,6 +28,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useConfirm } from "@/shared/components/ConfirmDialog";
+import { useMedia } from "@/features/media/hooks/useMedia";
 
 type MediaCardProps = {
   media: {
@@ -34,6 +37,7 @@ type MediaCardProps = {
     label?: string;
     description?: string;
     mediaType?: string;
+    isActive?: boolean;
   };
   onDownload?: () => void;
   onEdit?: () => void;
@@ -51,6 +55,7 @@ export function MediaCard({
   const [imageError, setImageError] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const confirm = useConfirm();
+  const { updateMutation } = useMedia();
 
   // Use the mediaType from the database, with fallback to URL detection
   const isVideoFile =
@@ -170,6 +175,24 @@ export function MediaCard({
                   <ExternalLink className="h-4 w-4 mr-2" />
                   View on IPFS
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    updateMutation.mutate({
+                      id: media.id,
+                      isActive: !(media.isActive ?? true),
+                    })
+                  }
+                >
+                  {media.isActive === false ? (
+                    <>
+                      <ToggleRight className="h-4 w-4 mr-2" /> Activate
+                    </>
+                  ) : (
+                    <>
+                      <ToggleLeft className="h-4 w-4 mr-2" /> Deactivate
+                    </>
+                  )}
+                </DropdownMenuItem>
                 {onEdit && (
                   <DropdownMenuItem onClick={onEdit}>
                     <Edit className="h-4 w-4 mr-2" />
@@ -209,6 +232,11 @@ export function MediaCard({
             <Badge variant="secondary" className="text-xs">
               {isVideoFile ? "Video" : "Image"}
             </Badge>
+            {media.isActive === false && (
+              <Badge variant="destructive" className="text-xs">
+                Inactive
+              </Badge>
+            )}
           </div>
         </div>
       </CardContent>

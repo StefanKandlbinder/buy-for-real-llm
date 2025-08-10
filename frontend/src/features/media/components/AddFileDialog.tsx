@@ -33,6 +33,7 @@ const addFileSchema = z.object({
     .refine((file) => file instanceof File, { message: "File is required" }),
   label: z.string().optional(),
   description: z.string().optional(),
+  isActive: z.boolean().default(true).optional(),
 });
 
 type AddFileDialogProps = {
@@ -64,6 +65,7 @@ export function AddFileDialog({
       file: undefined,
       label: undefined,
       description: undefined,
+      isActive: true,
     },
   });
 
@@ -75,7 +77,13 @@ export function AddFileDialog({
 
     try {
       reset();
-      await uploadFile(values.file, group, values.label, values.description);
+      await uploadFile(
+        values.file,
+        group,
+        values.label,
+        values.description,
+        values.isActive ?? true
+      );
       setIsOpen(false);
       form.reset();
     } catch {
@@ -175,6 +183,26 @@ export function AddFileDialog({
                       placeholder="e.g., Taken in Hawaii, 2023"
                       {...field}
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="isActive"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <FormControl>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={field.value ?? true}
+                        onChange={(e) => field.onChange(e.target.checked)}
+                      />
+                      <span className="text-sm">Active</span>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

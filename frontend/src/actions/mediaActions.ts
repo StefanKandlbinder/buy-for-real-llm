@@ -9,6 +9,9 @@ export async function uploadMediaAction(formData: FormData) {
   const groupId = Number(formData.get("groupId"));
   const label = formData.get("label") as string;
   const description = formData.get("description") as string;
+  const isActiveRaw = formData.get("isActive");
+  const isActive =
+    isActiveRaw === null ? true : String(isActiveRaw) !== "false";
 
   if (!file || !groupId) {
     return { error: "File and group ID are required." };
@@ -43,6 +46,7 @@ export async function uploadMediaAction(formData: FormData) {
       description,
       groupId,
       mediaType,
+      isActive,
     });
 
     // Revalidate all media-related data

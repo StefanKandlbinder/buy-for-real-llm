@@ -45,6 +45,7 @@ export function useMedia() {
           label: label || file.name,
           description: description || "",
           mediaType: file.type.startsWith("video/") ? "video" : "image",
+          isActive: true,
         };
 
         const updatedGroups = previousGroups.map((group) => {
@@ -109,6 +110,7 @@ export function useMedia() {
                             (file.type.startsWith("video/")
                               ? "video"
                               : "image"),
+                          isActive: data.isActive ?? true,
                         }
                       : m
                   ) || [],
@@ -146,6 +148,8 @@ export function useMedia() {
       label?: string;
       description?: string;
       url?: string;
+      isActive?: boolean;
+      mediaType?: "image" | "video";
     }) => {
       return await trpcClient.media.updateImage.mutate(input);
     },
@@ -166,7 +170,6 @@ export function useMedia() {
                 ? {
                     ...media,
                     ...variables,
-                    updatedAt: new Date(),
                   }
                 : media
             ) || [],

@@ -27,7 +27,8 @@ export function useUploadFile() {
     file: File,
     group: NestedGroup,
     label?: string,
-    description?: string
+    description?: string,
+    isActive: boolean = true
   ) => {
     // Client-side validation
     const validationErr = validateFile(file);
@@ -43,6 +44,7 @@ export function useUploadFile() {
     formData.set("groupId", String(group.id));
     formData.set("label", label || file.name);
     formData.set("description", description || "");
+    formData.set("isActive", String(isActive));
 
     return createMutation.mutateAsync(formData);
   };

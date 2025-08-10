@@ -50,6 +50,7 @@ export type NestedGroup = {
     url: string;
     description: string;
     mediaType: string;
+    isActive: boolean;
   }>;
 };
 
@@ -79,7 +80,7 @@ export const groupsRouter = router({
         gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path,
         COALESCE(
           json_agg(
-            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type)
+            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type, 'isActive', i.is_active)
           ) FILTER (WHERE i.id IS NOT NULL),
           '[]'::json
         ) as media
@@ -118,7 +119,7 @@ export const groupsRouter = router({
         gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path,
         COALESCE(
           json_agg(
-            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type)
+            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type, 'isActive', i.is_active)
           ) FILTER (WHERE i.id IS NOT NULL),
           '[]'::json
         ) as media
@@ -157,7 +158,7 @@ export const groupsRouter = router({
         gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path,
         COALESCE(
           json_agg(
-            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type)
+            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type, 'isActive', i.is_active)
           ) FILTER (WHERE i.id IS NOT NULL),
           '[]'::json
         ) as media

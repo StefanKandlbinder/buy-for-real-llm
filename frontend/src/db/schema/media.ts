@@ -4,6 +4,7 @@ import {
   varchar,
   text,
   timestamp,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { groups } from "./group";
 import { relations } from "drizzle-orm";
@@ -22,6 +23,7 @@ export const media = pgTable("media", {
   url: text("url").notNull(),
   description: varchar({ length: 255 }),
   mediaType: varchar("media_type", { length: 20 }).notNull().default("image"), // "image" or "video"
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
