@@ -39,7 +39,7 @@ function getQueryClient() {
 
 export function TRPCReactProvider(props: {
   children: React.ReactNode;
-  headers: Headers;
+  headerEntries: Array<[string, string]>;
 }) {
   const queryClient = getQueryClient();
   const { getToken } = useAuth();
@@ -55,7 +55,7 @@ export function TRPCReactProvider(props: {
           url: getUrl(),
           transformer: superjson,
           async headers() {
-            const heads = new Map(props.headers);
+            const heads = new Map(props.headerEntries);
             heads.set("x-trpc-source", "react");
             const token = await getToken();
             if (token) {

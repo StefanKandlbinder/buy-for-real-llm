@@ -48,19 +48,27 @@ function GroupTreeItem({
         <SidebarMenuButton asChild className={cn(isCurrentGroup && "bg-muted")}>
           <Link href={`/admin/${type}/${group.slug}`} scroll={false}>
             {hasChildren ? (
-              <button
+              <span
+                role="button"
+                tabIndex={0}
                 onClick={(e) => {
                   e.preventDefault();
                   setIsExpanded(!isExpanded);
                 }}
-                className="p-0 hover:bg-muted rounded"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setIsExpanded((prev) => !prev);
+                  }
+                }}
+                className="p-0 hover:bg-muted rounded inline-flex"
               >
                 {isExpanded ? (
                   <FolderOpen className="h-4 w-4" />
                 ) : (
                   <FolderDown className="h-4 w-4" />
                 )}
-              </button>
+              </span>
             ) : (
               <Folder className="h-4 w-4" />
             )}
@@ -92,14 +100,16 @@ interface AppSidebarProps {
   initialAdvertisementGroups?: NestedGroup[];
 }
 
-export function AppSidebar({ 
-  initialGroups, 
-  initialProductGroups, 
-  initialAdvertisementGroups 
+export function AppSidebar({
+  initialGroups,
+  initialProductGroups,
+  initialAdvertisementGroups,
 }: AppSidebarProps = {}) {
   const { groups: clientGroups } = useGroups(initialGroups);
-  const { productGroups: clientProductGroups } = useProductGroups(initialProductGroups);
-  const { advertisementGroups: clientAdvertisementGroups } = useAdvertisementGroups(initialAdvertisementGroups);
+  const { productGroups: clientProductGroups } =
+    useProductGroups(initialProductGroups);
+  const { advertisementGroups: clientAdvertisementGroups } =
+    useAdvertisementGroups(initialAdvertisementGroups);
   const { createProductWithGroupMutation } = useProducts();
   const { createAdvertisementWithGroupMutation } = useAdvertisements();
   const pathname = usePathname();
@@ -107,9 +117,12 @@ export function AppSidebar({
   // Use client data for real-time updates, fallback to server data
   const groups = clientGroups || initialGroups;
   const productGroups = clientProductGroups || initialProductGroups;
-  const advertisementGroups = clientAdvertisementGroups || initialAdvertisementGroups;
-  const rootProductGroups = productGroups?.filter((g) => g.parent_id === null) ?? [];
-  const rootAdvertisementGroups = advertisementGroups?.filter((g) => g.parent_id === null) ?? [];
+  const advertisementGroups =
+    clientAdvertisementGroups || initialAdvertisementGroups;
+  const rootProductGroups =
+    productGroups?.filter((g) => g.parent_id === null) ?? [];
+  const rootAdvertisementGroups =
+    advertisementGroups?.filter((g) => g.parent_id === null) ?? [];
 
   // Find the current group based on the pathname
   const getCurrentGroupId = () => {

@@ -31,7 +31,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const heads = new Headers(await headers());
+  const heads = await headers();
+  const headerEntries = Array.from(heads.entries());
   return (
     <ClerkProvider
       appearance={{
@@ -43,11 +44,11 @@ export default async function RootLayout({
         },
       }}
     >
-      <TRPCReactProvider headers={heads}>
-        <html lang="en" suppressHydrationWarning>
-          <body
-            className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-          >
+      <html lang="en" suppressHydrationWarning>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
+          <TRPCReactProvider headerEntries={headerEntries}>
             <ThemeProvider
               attribute="class"
               defaultTheme="system"
@@ -63,9 +64,9 @@ export default async function RootLayout({
                 </ErrorBoundary>
               </ErrorProvider>
             </ThemeProvider>
-          </body>
-        </html>
-      </TRPCReactProvider>
+          </TRPCReactProvider>
+        </body>
+      </html>
     </ClerkProvider>
   );
 }
