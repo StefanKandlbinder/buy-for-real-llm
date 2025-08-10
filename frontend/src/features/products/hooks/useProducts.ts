@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client/client";
 import { toast } from "sonner";
-import { useAsyncErrorHandler } from "@/components/Error/ErrorProvider";
+import { useAsyncErrorHandler } from "@/shared/components/Error/ErrorProvider";
 import { TRPCClientErrorLike } from "@trpc/client";
 import { AppRouter } from "@/trpc/server";
 import { createInvalidators } from "@/trpc/client/utils";

@@ -1,29 +1,31 @@
 "use client";
 
-import { GroupNode } from "./GroupNode";
-import { AddGroupDialog } from "./AddGroupDialog";
-import { useGroups } from "@/hooks/group/useGroups";
-import { useAdvertisementGroups } from "@/hooks/advertisement/useAdvertisementGroups";
-import { useAdvertisements } from "@/hooks/advertisement/useAdvertisements";
-import { Skeleton } from "../ui/skeleton";
+import { GroupNode } from "@/features/groups/components/GroupNode";
+import { AddGroupDialog } from "@/features/groups/components/AddGroupDialog";
+import { useGroups } from "@/features/groups/hooks/useGroups";
+import { useProductGroups } from "@/features/products/hooks/useProductGroups";
+import { useProducts } from "@/features/products/hooks/useProducts";
+import { Skeleton } from "@/components/ui/skeleton";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
+import { z } from "zod";
+import { insertGroupSchema, updateGroupSchema } from "@/trpc/server/routers/groups/validation";
 
-interface AdvertisementGalleryProps {
+interface ProductGalleryProps {
   initialData?: NestedGroup[];
   currentGroupId?: number;
 }
 
-export function AdvertisementGallery({
+export function ProductGallery({
   initialData,
   currentGroupId,
-}: AdvertisementGalleryProps) {
+}: ProductGalleryProps) {
   const { groups, deleteGroupMutation, updateGroupMutation, groupsQuery } =
     useGroups(initialData);
-  const { advertisementGroups } = useAdvertisementGroups(initialData);
-  const { createAdvertisementWithGroupMutation } = useAdvertisements();
+  const { productGroups } = useProductGroups(initialData);
+  const { createProductWithGroupMutation } = useProducts();
 
-  // Use filtered advertisement groups instead of all groups
-  const groupsToDisplay = advertisementGroups || groups;
+  // Use filtered product groups instead of all groups
+  const groupsToDisplay = productGroups || groups;
 
   // If we have a current group ID, show only that group (children will be shown recursively by GroupNode)
   // Otherwise, show root groups
@@ -50,8 +52,8 @@ export function AdvertisementGallery({
       <div className="flex justify-end mb-4">
         <AddGroupDialog
           groups={groups ?? []}
-          createGroupMutation={(values) =>
-            createAdvertisementWithGroupMutation.mutate(values)
+          createGroupMutation={(values: z.infer<typeof insertGroupSchema>) =>
+            createProductWithGroupMutation.mutate(values)
           }
         />
       </div>
@@ -60,12 +62,12 @@ export function AdvertisementGallery({
           key={group.id as number}
           group={group}
           allGroups={groupsToDisplay ?? []}
-          deleteGroupMutation={(values) => deleteGroupMutation.mutate(values)}
-          createGroupMutation={(values) =>
-            createAdvertisementWithGroupMutation.mutate(values)
+          deleteGroupMutation={(values: { id: number }) => deleteGroupMutation.mutate(values)}
+          createGroupMutation={(values: z.infer<typeof insertGroupSchema>) =>
+            createProductWithGroupMutation.mutate(values)
           }
-          updateGroupMutation={(values) => updateGroupMutation.mutate(values)}
-          contentType="advertisements"
+          updateGroupMutation={(values: z.infer<typeof updateGroupSchema>) => updateGroupMutation.mutate(values)}
+          contentType="products"
         />
       ))}
     </div>

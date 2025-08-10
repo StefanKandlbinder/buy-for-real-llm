@@ -2,7 +2,7 @@
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, Loader2 } from "lucide-react";
-import { useUploadFile } from "@/hooks/file/useUploadFile";
+import { useUploadFile } from "@/features/media/hooks/useUploadFile";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
 export default function UploadFileButton({ group }: { group: NestedGroup }) {

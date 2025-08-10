@@ -1,7 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
-import { AdminBreadcrumb } from "@/components/Group/AdminBreadcrumb";
-import { UserMenu } from "@/components/UserMenu";
+import { AppSidebar } from "@/shared/components/AppSidebar";
+import { AdminBreadcrumb } from "@/features/groups/components/AdminBreadcrumb";
+import { UserMenu } from "@/shared/components/UserMenu";
 import { api } from "@/trpc/server/server";
 
 export default async function RootLayout({

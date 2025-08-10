@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
-import { AddFileDialog } from "../File/AddFileDialog";
+import { AddFileDialog } from "@/features/media/components/AddFileDialog";
 import { AddGroupDialog } from "./AddGroupDialog";
 import { UpdateGroupDialog } from "./UpdateGroupDialog";
 import {
@@ -28,9 +28,9 @@ import {
   updateGroupSchema,
 } from "@/trpc/server/routers/groups/validation";
 import { z } from "zod";
-import { MediaCard } from "./MediaCard";
-import { useMedia } from "@/hooks/file/useMedia";
-import { useConfirm } from "@/components/ConfirmDialog";
+import { MediaCard } from "@/features/media/components/MediaCard";
+import { useMedia } from "@/features/media/hooks/useMedia";
+import { useConfirm } from "@/shared/components/ConfirmDialog";
 
 export function GroupNode({
   group,

@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import { ThemeProvider } from "@/shared/components/ThemeProvider";
 import { TRPCReactProvider } from "@/trpc/client/trpc-provider";
 import { ClerkProvider } from "@clerk/nextjs";
 import { headers } from "next/headers";
 import { dark, shadesOfPurple } from "@clerk/themes";
 import { Toaster } from "@/components/ui/sonner";
-import ErrorBoundary from "@/components/Error/ErrorBoundary";
-import { ErrorProvider } from "@/components/Error/ErrorProvider";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
+import ErrorBoundary from "@/shared/components/Error/ErrorBoundary";
+import { ErrorProvider } from "@/shared/components/Error/ErrorProvider";
+import { ConfirmDialog } from "@/shared/components/ConfirmDialog";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/card";
 import ErrorBoundary, {
   useErrorHandler,
-} from "@/components/Error/ErrorBoundary";
-import { useErrorReporting } from "@/components/Error/ErrorProvider";
+} from "@/shared/components/Error/ErrorBoundary";
+import { useErrorReporting } from "@/shared/components/Error/ErrorProvider";
 import { AlertTriangle, Bug, WifiOff } from "lucide-react";
 
 // Component that intentionally throws an error

@@ -15,12 +15,12 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
-import { AddGroupDialog } from "./Group/AddGroupDialog";
-import { useGroups } from "@/hooks/group/useGroups";
-import { useProductGroups } from "@/hooks/product/useProductGroups";
-import { useAdvertisementGroups } from "@/hooks/advertisement/useAdvertisementGroups";
-import { useProducts } from "@/hooks/product/useProducts";
-import { useAdvertisements } from "@/hooks/advertisement/useAdvertisements";
+import { AddGroupDialog } from "@/features/groups/components/AddGroupDialog";
+import { useGroups } from "@/features/groups/hooks/useGroups";
+import { useProductGroups } from "@/features/products/hooks/useProductGroups";
+import { useAdvertisementGroups } from "@/features/advertisements/hooks/useAdvertisementGroups";
+import { useProducts } from "@/features/products/hooks/useProducts";
+import { useAdvertisements } from "@/features/advertisements/hooks/useAdvertisements";
 import { cn } from "@/lib/utils";
 
 interface GroupTreeItemProps {

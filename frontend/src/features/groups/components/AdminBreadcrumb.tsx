@@ -11,7 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useGroups } from "@/hooks/group/useGroups";
+import { useGroups } from "@/features/groups/hooks/useGroups";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 
 interface AdminBreadcrumbProps {

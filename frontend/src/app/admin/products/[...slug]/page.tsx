@@ -1,4 +1,4 @@
-import { ProductGallery } from "@/components/Group/ProductGallery";
+import { ProductGallery } from "@/features/products/components/ProductGallery";
 import { api } from "@/trpc/server/server";
 import { notFound } from "next/navigation";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";

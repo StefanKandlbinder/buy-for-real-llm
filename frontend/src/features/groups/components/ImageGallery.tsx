@@ -1,10 +1,12 @@
 "use client";
 
-import { GroupNode } from "./GroupNode";
-import { AddGroupDialog } from "./AddGroupDialog";
-import { useGroups } from "@/hooks/group/useGroups";
-import { Skeleton } from "../ui/skeleton";
+import { GroupNode } from "@/features/groups/components/GroupNode";
+import { AddGroupDialog } from "@/features/groups/components/AddGroupDialog";
+import { useGroups } from "@/features/groups/hooks/useGroups";
+import { Skeleton } from "@/components/ui/skeleton";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
+import { z } from "zod";
+import { insertGroupSchema, updateGroupSchema } from "@/trpc/server/routers/groups/validation";
 
 interface ImageGalleryProps {
   initialData?: NestedGroup[];
@@ -39,7 +41,7 @@ export function ImageGallery({ initialData }: ImageGalleryProps) {
       <div className="flex justify-end mb-4">
         <AddGroupDialog
           groups={groups ?? []}
-          createGroupMutation={(values) => createGroupMutation.mutate(values)}
+          createGroupMutation={(values: z.infer<typeof insertGroupSchema>) => createGroupMutation.mutate(values)}
         />
       </div>
       {rootGroups.map((group) => (
@@ -47,9 +49,9 @@ export function ImageGallery({ initialData }: ImageGalleryProps) {
           key={group.id as number}
           group={group}
           allGroups={groups ?? []}
-          deleteGroupMutation={(values) => deleteGroupMutation.mutate(values)}
-          createGroupMutation={(values) => createGroupMutation.mutate(values)}
-          updateGroupMutation={(values) => updateGroupMutation.mutate(values)}
+          deleteGroupMutation={(values: { id: number }) => deleteGroupMutation.mutate(values)}
+          createGroupMutation={(values: z.infer<typeof insertGroupSchema>) => createGroupMutation.mutate(values)}
+          updateGroupMutation={(values: z.infer<typeof updateGroupSchema>) => updateGroupMutation.mutate(values)}
         />
       ))}
     </div>

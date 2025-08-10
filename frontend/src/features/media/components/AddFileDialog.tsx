@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
-import { useUploadFile } from "@/hooks/file/useUploadFile";
+import { useUploadFile } from "@/features/media/hooks/useUploadFile";
 import { Loader2, Upload } from "lucide-react";
 
 const addFileSchema = z.object({

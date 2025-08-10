@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client/client";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { toast } from "sonner";
-import { useAsyncErrorHandler } from "@/components/Error/ErrorProvider";
+import { useAsyncErrorHandler } from "@/shared/components/Error/ErrorProvider";
 import { createInvalidators } from "@/trpc/client/utils";
 
 export function useGroups(initialData?: NestedGroup[]) {
