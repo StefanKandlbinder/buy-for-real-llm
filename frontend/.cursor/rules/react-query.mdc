@@ -20,32 +20,35 @@ alwaysApply: false
 // lib/query-client.ts
 import { QueryClient } from "@tanstack/react-query";
 
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
-      retry: (failureCount, error) => {
-        // Don't retry on 4xx errors except 408 (timeout)
-        if (error instanceof Error && "status" in error) {
-          const status = (error as any).status;
-          if (status >= 400 && status < 500 && status !== 408) {
+export function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        gcTime: 1000 * 60 * 10, // 10 minutes
+        retry: (failureCount, error: unknown) => {
+          const status = (error as any)?.status as number | undefined;
+          if (
+            typeof status === "number" &&
+            status >= 400 &&
+            status < 500 &&
+            status !== 408
+          ) {
             return false;
           }
-        }
-        return failureCount < 3;
+          return failureCount < 3;
+        },
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    },
-    mutations: {
-      retry: false, // Don't retry mutations by default
-      onError: (error) => {
-        console.error("Mutation error:", error);
-        // Global error toast/notification
+      mutations: {
+        retry: false,
+        onError: (error) => {
+          console.error("Mutation error:", error);
+        },
       },
     },
-  },
-});
+  });
+}
 ```
 
 ### Provider Setup
@@ -59,7 +62,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useState } from "react";
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => createQueryClient());
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -517,6 +520,7 @@ import { uploadMediaAction } from "@/actions/mediaActions";
 export function useMediaOptimistic() {
   const trpc = useTRPC();
   const queryKey = trpc.groups.getNestedGroups.queryKey();
+  const queryClient = useQueryClient();
 
   const createMutation = useOptimisticMutation({
     mutationFn: uploadMediaAction,
@@ -585,6 +589,60 @@ export function useMediaOptimistic() {
 
   return {
     createMutation,
+  };
+}
+```
+
+### Centralized Invalidation Helpers
+
+```typescript
+// trpc/client/utils.ts
+import { QueryClient } from "@tanstack/react-query";
+
+export function createInvalidators(
+  queryClient: QueryClient,
+  trpc: ReturnType<typeof import("@/trpc/client/client").useTRPC>
+) {
+  return {
+    productsCluster: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: trpc.products.getAllProducts.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getGroupsWithProducts.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getNestedGroups.queryKey(),
+        }),
+      ]);
+    },
+    advertisementsCluster: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: trpc.advertisements.getAllAdvertisements.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getGroupsWithAdvertisements.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getNestedGroups.queryKey(),
+        }),
+      ]);
+    },
+    groupsCluster: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getNestedGroups.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getGroupsWithProducts.queryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: trpc.groups.getGroupsWithAdvertisements.queryKey(),
+        }),
+      ]);
+    },
   };
 }
 ```

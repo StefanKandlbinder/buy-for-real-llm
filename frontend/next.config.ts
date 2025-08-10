@@ -10,7 +10,11 @@ const bodySizeLimitMB = parseInt(
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      new URL("https://gray-abstract-hyena-886.mypinata.cloud/**"),
+      {
+        protocol: "https",
+        hostname: "gray-abstract-hyena-886.mypinata.cloud",
+        pathname: "/**",
+      },
     ],
   },
 

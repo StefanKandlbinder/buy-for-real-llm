@@ -9,16 +9,11 @@ import { getUrl } from "./utils";
 import { AppRouter } from "@/trpc/server";
 import { useAuth } from "@clerk/nextjs";
 
+import { createQueryClient } from "@/lib/query-client";
+
 function makeQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        // With SSR, we usually want to set some default staleTime
-        // above 0 to avoid refetching immediately on the client
-        staleTime: 60 * 1000,
-      },
-    },
-  });
+  // Use centralized defaults from lib/query-client
+  return createQueryClient();
 }
 
 let browserQueryClient: QueryClient | undefined = undefined;

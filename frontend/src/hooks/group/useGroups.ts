@@ -3,26 +3,16 @@ import { useTRPC } from "@/trpc/client/client";
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { toast } from "sonner";
 import { useAsyncErrorHandler } from "@/components/Error/ErrorProvider";
+import { createInvalidators } from "@/trpc/client/utils";
 
 export function useGroups(initialData?: NestedGroup[]) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
+  const invalidators = createInvalidators(queryClient, trpc);
   const handleAsyncError = useAsyncErrorHandler();
 
-  const invalidateGroupsCluster = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: trpc.groups.getNestedGroups.queryKey(),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: trpc.groups.getGroupsWithProducts.queryKey(),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: trpc.groups.getGroupsWithAdvertisements.queryKey(),
-      }),
-    ]);
-  };
+  // Invalidation handled centrally via createInvalidators
 
   const groupsQuery = useQuery(
     trpc.groups.getNestedGroups.queryOptions(undefined, {
@@ -86,7 +76,7 @@ export function useGroups(initialData?: NestedGroup[]) {
         }, "Failed to create group. Please try again.");
       },
       onSettled: async () => {
-        await invalidateGroupsCluster();
+        await invalidators.groupsCluster();
       },
     })
   );
@@ -139,7 +129,7 @@ export function useGroups(initialData?: NestedGroup[]) {
         }, "Failed to delete group. Please try again.");
       },
       onSettled: async () => {
-        await invalidateGroupsCluster();
+        await invalidators.groupsCluster();
       },
     })
   );
@@ -183,7 +173,7 @@ export function useGroups(initialData?: NestedGroup[]) {
         }, "Failed to update group. Please try again.");
       },
       onSettled: async () => {
-        await invalidateGroupsCluster();
+        await invalidators.groupsCluster();
       },
     })
   );

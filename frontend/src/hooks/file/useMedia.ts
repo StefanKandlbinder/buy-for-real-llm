@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { uploadMediaAction } from "@/actions/mediaActions";
 import { useTRPCClient } from "@/trpc/client/client";
 import { useTRPC } from "@/trpc/client/client";
+import { createInvalidators } from "@/trpc/client/utils";
 import { AppRouter } from "@/trpc/server";
 import { inferRouterOutputs } from "@trpc/server";
 
@@ -16,20 +17,9 @@ export function useMedia() {
   const trpcClient = useTRPCClient();
   const queryClient = useQueryClient();
   const groupsQueryKey = trpc.groups.getNestedGroups.queryKey();
+  const invalidators = createInvalidators(queryClient, trpc);
 
-  async function invalidateGroupsCluster() {
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: trpc.groups.getNestedGroups.queryKey(),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: trpc.groups.getGroupsWithProducts.queryKey(),
-      }),
-      queryClient.invalidateQueries({
-        queryKey: trpc.groups.getGroupsWithAdvertisements.queryKey(),
-      }),
-    ]);
-  }
+  // Invalidation handled centrally via createInvalidators
 
   const createMutation = useMutation({
     mutationFn: uploadMediaAction,
@@ -48,9 +38,10 @@ export function useMedia() {
       // Optimistic update: Add a temporary media item with loading state
       if (previousGroups) {
         const optimisticId = `temp-${Date.now()}`;
+        const objectUrl = URL.createObjectURL(file);
         const optimisticMedia = {
           id: optimisticId, // Temporary ID
-          url: URL.createObjectURL(file), // Local blob URL for preview
+          url: objectUrl, // Local blob URL for preview
           label: label || file.name,
           description: description || "",
           mediaType: file.type.startsWith("video/") ? "video" : "image",
@@ -67,7 +58,13 @@ export function useMedia() {
         });
 
         queryClient.setQueryData(groupsQueryKey, updatedGroups);
-        return { previousGroups, loadingToast, tempId: optimisticId, groupId };
+        return {
+          previousGroups,
+          loadingToast,
+          tempId: optimisticId,
+          groupId,
+          objectUrl,
+        };
       }
 
       return {
@@ -133,8 +130,13 @@ export function useMedia() {
         id: context?.loadingToast,
       });
     },
-    onSettled: async () => {
-      await invalidateGroupsCluster();
+    onSettled: async (_data, _err, _vars, context) => {
+      if (context && "objectUrl" in context && context.objectUrl) {
+        try {
+          URL.revokeObjectURL(context.objectUrl as string);
+        } catch {}
+      }
+      await invalidators.groupsCluster();
     },
   });
 
@@ -189,7 +191,7 @@ export function useMedia() {
       });
     },
     onSettled: async () => {
-      await invalidateGroupsCluster();
+      await invalidators.groupsCluster();
     },
   });
 
@@ -231,7 +233,7 @@ export function useMedia() {
       });
     },
     onSettled: async () => {
-      await invalidateGroupsCluster();
+      await invalidators.groupsCluster();
     },
   });
 

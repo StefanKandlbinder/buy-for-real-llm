@@ -16,39 +16,31 @@ alwaysApply: true
 
 ```typescript
 // next.config.ts
-const nextConfig = {
-  experimental: {
-    reactCompiler: {
-      enabled: true,
-      compilationMode:
-        process.env.NODE_ENV === "development" ? "annotation" : "infer",
-      panicThreshold: "all_errors",
-      sources: (filename) => filename.indexOf("node_modules") === -1,
-    },
-    turbo: {
-      rules: {
-        "*.ts": {
-          loaders: ["ts-loader"],
-        },
-      },
-    },
-  },
-  transpilePackages: ["react-compiler-runtime"],
+import type { NextConfig } from "next";
+
+const bodySizeLimitMB = parseInt(
+  process.env.NEXT_PUBLIC_BODY_SIZE_LIMIT_MB || "50"
+);
+
+const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "*.pinata.cloud",
-        port: "",
+        hostname: "gray-abstract-hyena-886.mypinata.cloud",
         pathname: "/**",
       },
+      // Adjust hostname to your gateway if needed
     ],
-  },
-  typescript: {
-    ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: false,
+  },
+  experimental: {
+    reactCompiler: true,
+    serverActions: {
+      bodySizeLimit: `${bodySizeLimitMB}mb`,
+    },
   },
 };
 
@@ -109,21 +101,22 @@ export function ClientComponent({ data }) {
 ```typescript
 // app/layout.tsx - Root Layout
 import { ClerkProvider } from "@clerk/nextjs";
-import { TRPCProvider } from "@/trpc/client/trpc-provider";
-import { QueryProvider } from "@/lib/query-provider";
+import { TRPCReactProvider } from "@/trpc/client/trpc-provider";
+import { headers } from "next/headers";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const headerEntries = Array.from((await headers()).entries());
   return (
     <ClerkProvider>
       <html lang="en">
         <body>
-          <QueryProvider>
-            <TRPCProvider>{children}</TRPCProvider>
-          </QueryProvider>
+          <TRPCReactProvider headerEntries={headerEntries}>
+            {children}
+          </TRPCReactProvider>
         </body>
       </html>
     </ClerkProvider>
