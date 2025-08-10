@@ -1,3 +1,39 @@
+project
+
+# Cursor Rules for Frontend (Next.js + tRPC + Drizzle)
+
+## Architecture
+- Use feature-first structure:
+  - `src/features/<feature>/{components,hooks,api,validation,lib}`
+  - `src/shared/{components,hooks}` for cross-feature building blocks
+  - Keep `src/app` thin. Pages/layouts compose feature components and call feature hooks or server actions.
+- All DB access goes through tRPC server routers in `src/trpc/server`. No direct DB access in client.
+- Use TanStack Query for all client data fetching and mutations.
+
+## UI & Styling
+- Use shadcn components from `src/components/ui/*` as primitives.
+- Prefer composable, headless patterns; avoid bespoke one-off styles.
+
+## Naming
+- Components: PascalCase. Hooks: camelCase with `use` prefix. Folders: plural nouns.
+- Feature query helpers: `api/queries.ts`, query keys in `api/queryKeys.ts` when needed.
+
+## Import Aliases
+- `@/*` maps to `src/*`. Keep imports absolute to avoid brittle relative paths.
+
+## Error handling
+- Use `src/shared/components/Error/*` providers and boundaries.
+- For async code in hooks, wrap with `useAsyncErrorHandler`.
+
+## Mutations & Caching
+- Use optimistic updates with proper rollback and clustered invalidation via `src/trpc/client/utils.ts`.
+
+## Server Actions
+- Use only for `FormData` (e.g., uploads). Internally call tRPC server caller.
+
+## Readme Discipline
+- When structure changes, update `frontend/README.md` and root `README.md`.
+
 {
   "rules": [
     {

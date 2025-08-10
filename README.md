@@ -110,10 +110,13 @@ buy-for-real-qwen/
 │   └── object_detection/ # Qwen object detection model
 └── frontend/           # Next.js frontend
     ├── src/
-    │   ├── app/        # Next.js pages
-    │   ├── components/ # React components
-    │   ├── db/         # Drizzle ORM schema
-    │   └── trpc/       # tRPC server and client
+    │   ├── app/          # Next.js App Router (thin, delegates to features)
+    │   ├── features/     # Domain modules (groups, products, advertisements, media)
+    │   │   └── .../components, .../hooks
+    │   ├── shared/       # Cross-feature components and hooks
+    │   ├── components/ui # shadcn UI primitives
+    │   ├── db/           # Drizzle ORM schema
+    │   └── trpc/         # tRPC server and client
     └── public/
 ```
 
