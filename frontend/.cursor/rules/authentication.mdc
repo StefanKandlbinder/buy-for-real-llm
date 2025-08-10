@@ -1,3 +1,7 @@
+---
+alwaysApply: false
+---
+
 # Authentication (Clerk) Rules
 
 ## Core Configuration

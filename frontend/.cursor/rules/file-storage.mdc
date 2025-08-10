@@ -1,3 +1,9 @@
+---
+description: file-storage
+globs:
+alwaysApply: false
+---
+
 # File Storage (Pinata IPFS) Rules
 
 ## Core Configuration

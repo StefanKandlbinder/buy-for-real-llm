@@ -1,3 +1,7 @@
+---
+alwaysApply: true
+---
+
 # Styling (Tailwind CSS + shadcn/ui) Rules
 
 ## Core Configuration

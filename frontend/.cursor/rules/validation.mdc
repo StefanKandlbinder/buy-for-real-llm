@@ -1,3 +1,7 @@
+---
+alwaysApply: true
+---
+
 # Validation (Zod) Rules
 
 ## Core Configuration

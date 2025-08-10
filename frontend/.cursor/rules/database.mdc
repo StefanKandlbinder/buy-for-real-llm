@@ -1,3 +1,9 @@
+---
+description: database
+globs:
+alwaysApply: false
+---
+
 # Database (Drizzle ORM + PostgreSQL) Rules
 
 ## Core Configuration

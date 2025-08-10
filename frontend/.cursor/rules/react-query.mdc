@@ -1,3 +1,9 @@
+---
+description: react-query
+globs:
+alwaysApply: false
+---
+
 # React Query (TanStack Query) Rules
 
 ## Core Configuration
