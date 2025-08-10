@@ -51,7 +51,7 @@ export function AdvertisementGallery({
     <div>
       <div className="flex justify-end mb-4">
         <AddGroupDialog
-          groups={groups ?? []}
+          groups={groupsToDisplay ?? []}
           createGroupMutation={(values: z.infer<typeof insertGroupSchema>) =>
             createAdvertisementWithGroupMutation.mutate(values)
           }

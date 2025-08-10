@@ -51,7 +51,7 @@ export function ProductGallery({
     <div>
       <div className="flex justify-end mb-4">
         <AddGroupDialog
-          groups={groups ?? []}
+          groups={groupsToDisplay ?? []}
           createGroupMutation={(values: z.infer<typeof insertGroupSchema>) =>
             createProductWithGroupMutation.mutate(values)
           }

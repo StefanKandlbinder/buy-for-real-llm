@@ -153,7 +153,7 @@ export function AppSidebar({
             <SidebarMenu>
               <SidebarMenuItem>
                 <AddGroupDialog
-                  groups={productGroups ?? []}
+                  groups={rootProductGroups ?? []}
                   createGroupMutation={(values) =>
                     createProductWithGroupMutation.mutate(values)
                   }
@@ -183,7 +183,7 @@ export function AppSidebar({
             <SidebarMenu>
               <SidebarMenuItem>
                 <AddGroupDialog
-                  groups={advertisementGroups ?? []}
+                  groups={rootAdvertisementGroups ?? []}
                   createGroupMutation={(values) =>
                     createAdvertisementWithGroupMutation.mutate(values)
                   }
