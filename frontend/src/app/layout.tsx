@@ -9,6 +9,7 @@ import { dark, shadesOfPurple } from "@clerk/themes";
 import { Toaster } from "@/components/ui/sonner";
 import ErrorBoundary from "@/components/Error/ErrorBoundary";
 import { ErrorProvider } from "@/components/Error/ErrorProvider";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,8 +56,10 @@ export default async function RootLayout({
             >
               <ErrorProvider>
                 <ErrorBoundary>
-                  {children}
-                  <Toaster expand={true} />
+                  <ConfirmDialog>
+                    {children}
+                    <Toaster expand={true} />
+                  </ConfirmDialog>
                 </ErrorBoundary>
               </ErrorProvider>
             </ThemeProvider>

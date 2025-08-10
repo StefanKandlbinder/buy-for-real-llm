@@ -20,6 +20,7 @@ import { insertGroupSchema } from "@/trpc/server/routers/groups/validation";
 import { z } from "zod";
 import { MediaCard } from "./MediaCard";
 import { useMedia } from "@/hooks/file/useMedia";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 export function GroupNode({
   group,
@@ -37,6 +38,7 @@ export function GroupNode({
   const [showAddFileDialog, setShowAddFileDialog] = useState(false);
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
   const { deleteMutation } = useMedia();
+  const confirm = useConfirm();
 
   // Get the child groups of the current group
   const childGroups = allGroups.filter((g) => g.parent_id === group.id);
@@ -92,14 +94,19 @@ export function GroupNode({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => {
-                  if (group.id) {
-                    deleteGroupMutation({ id: group.id });
-                  }
+                variant="destructive"
+                onClick={async () => {
+                  if (!group.id) return;
+                  const ok = await confirm({
+                    title: `Delete group "${group.name}"?`,
+                    description: "This will remove the group and its media.",
+                    confirmText: "Delete",
+                    destructive: true,
+                  });
+                  if (ok) deleteGroupMutation({ id: group.id });
                 }}
               >
-                <TrashIcon className="h-4 w-4 mr-2 text-destructive" />
+                <TrashIcon className="h-4 w-4 mr-2" />
                 Delete Group
               </DropdownMenuItem>
             </DropdownMenuGroup>

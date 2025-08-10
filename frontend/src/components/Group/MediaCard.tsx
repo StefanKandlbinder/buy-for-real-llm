@@ -25,6 +25,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 type MediaCardProps = {
   media: {
@@ -49,6 +50,7 @@ export function MediaCard({
 }: MediaCardProps) {
   const [imageError, setImageError] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const confirm = useConfirm();
 
   // Use the mediaType from the database, with fallback to URL detection
   const isVideoFile =
@@ -78,6 +80,16 @@ export function MediaCard({
     } else {
       window.open(media.url, "_blank");
     }
+  };
+
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: `Delete "${media.label || "this media"}"?`,
+      description: "This action cannot be undone.",
+      confirmText: "Delete",
+      destructive: true,
+    });
+    if (ok) onDelete?.();
   };
 
   return (
@@ -168,10 +180,10 @@ export function MediaCard({
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={onDelete}
+                      variant="destructive"
+                      onClick={handleDelete}
                     >
-                      <Trash2 className="h-4 w-4 mr-2 text-destructive" />
+                      <Trash2 className="h-4 w-4 mr-2" />
                       Delete
                     </DropdownMenuItem>
                   </>
