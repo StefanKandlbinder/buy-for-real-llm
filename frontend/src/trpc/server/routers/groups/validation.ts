@@ -37,6 +37,8 @@ export const updateGroupSchema = createSelectSchema(groups)
       .string()
       .min(3, { message: "Group name must be at least 3 characters." }),
     slug: z.string().optional(),
+    // Allow updating the parent; null makes it a root group
+    parentId: z.number().nullish().optional(),
   });
 
 // Schema for inserting a new image

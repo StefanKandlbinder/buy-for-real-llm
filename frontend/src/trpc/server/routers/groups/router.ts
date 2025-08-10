@@ -44,7 +44,13 @@ export type NestedGroup = {
   parent_id: number | null;
   level: number;
   path: string;
-  media: Array<{ id: string; label: string; url: string; description: string; mediaType: string }>;
+  media: Array<{
+    id: string;
+    label: string;
+    url: string;
+    description: string;
+    mediaType: string;
+  }>;
 };
 
 export const groupsRouter = router({
@@ -189,9 +195,29 @@ export const groupsRouter = router({
   updateGroup: protectedProcedure
     .input(updateGroupSchema)
     .mutation(async ({ ctx, input }) => {
+      // Optional: prevent setting parentId to itself or any of its descendants
+      if (input.parentId !== undefined && input.parentId !== null) {
+        if (input.parentId === input.id) {
+          throw new Error("A group cannot be its own parent.");
+        }
+        // Ensure new parent is not a descendant to avoid cycles
+        const descendantIds = await getAllChildGroupIds(ctx.db, input.id);
+        if (descendantIds.includes(input.parentId)) {
+          throw new Error("Cannot set a group parent to its own descendant.");
+        }
+      }
+
+      const updateFields: Partial<typeof groups.$inferInsert> = {
+        name: input.name,
+        updatedAt: new Date(),
+      };
+      if (input.parentId !== undefined) {
+        updateFields.parentId = input.parentId ?? null;
+      }
+
       const [updatedGroup] = await ctx.db
         .update(groups)
-        .set({ name: input.name, updatedAt: new Date() })
+        .set(updateFields)
         .where(eq(groups.id, input.id))
         .returning();
 

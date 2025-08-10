@@ -153,6 +153,7 @@ export function GroupNode({
       {showUpdateGroupDialog && (
         <UpdateGroupDialog
           group={group}
+          allGroups={allGroups}
           updateGroupMutation={(values) => updateGroupMutation(values)}
           open={showUpdateGroupDialog}
           onOpenChange={setShowUpdateGroupDialog}
