@@ -46,6 +46,9 @@ export function useMedia() {
           description: description || "",
           mediaType: file.type.startsWith("video/") ? "video" : "image",
           isActive: true,
+          width: null,
+          height: null,
+          fileSize: null,
         };
 
         const updatedGroups = previousGroups.map((group) => {
@@ -111,6 +114,9 @@ export function useMedia() {
                               ? "video"
                               : "image"),
                           isActive: data.isActive ?? true,
+                          width: data.width,
+                          height: data.height,
+                          fileSize: data.fileSize,
                         }
                       : m
                   ) || [],
