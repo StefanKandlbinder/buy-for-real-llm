@@ -13,6 +13,19 @@ export async function uploadMediaAction(formData: FormData) {
   const isActive =
     isActiveRaw === null ? true : String(isActiveRaw) !== "false";
 
+  // Get dimensions from form data (extracted on client side)
+  const width = formData.get("width")
+    ? Number(formData.get("width"))
+    : undefined;
+  const height = formData.get("height")
+    ? Number(formData.get("height"))
+    : undefined;
+
+  // Get file size from form data
+  const fileSize = formData.get("fileSize")
+    ? Number(formData.get("fileSize"))
+    : undefined;
+
   if (!file || !groupId) {
     return { error: "File and group ID are required." };
   }
@@ -46,6 +59,9 @@ export async function uploadMediaAction(formData: FormData) {
       description,
       groupId,
       mediaType,
+      width,
+      height,
+      fileSize,
       isActive,
     });
 

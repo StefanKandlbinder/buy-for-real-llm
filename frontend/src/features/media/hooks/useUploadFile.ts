@@ -3,6 +3,7 @@
 import { NestedGroup } from "@/trpc/server/routers/groups/router";
 import { useState } from "react";
 import { useMedia } from "./useMedia";
+import { getMediaDimensions } from "@/lib/image-utils";
 
 export function useUploadFile() {
   const { createMutation } = useMedia();
@@ -39,12 +40,24 @@ export function useUploadFile() {
 
     setValidationError(null);
 
+    // Extract dimensions from the file
+    const dimensions = await getMediaDimensions(file);
+
     const formData = new FormData();
     formData.set("file", file);
     formData.set("groupId", String(group.id));
     formData.set("label", label || file.name);
     formData.set("description", description || "");
     formData.set("isActive", String(isActive));
+
+    // Add dimensions to form data if available
+    if (dimensions) {
+      formData.set("width", String(dimensions.width));
+      formData.set("height", String(dimensions.height));
+    }
+
+    // Add file size to form data
+    formData.set("fileSize", String(file.size));
 
     return createMutation.mutateAsync(formData);
   };

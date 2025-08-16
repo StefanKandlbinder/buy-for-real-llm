@@ -23,6 +23,9 @@ export const media = pgTable("media", {
   url: text("url").notNull(),
   description: varchar({ length: 255 }),
   mediaType: varchar("media_type", { length: 20 }).notNull().default("image"), // "image" or "video"
+  width: integer("width"), // Width in pixels
+  height: integer("height"), // Height in pixels
+  fileSize: integer("file_size"), // File size in bytes
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

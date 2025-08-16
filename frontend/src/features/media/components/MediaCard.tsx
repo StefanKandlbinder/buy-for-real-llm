@@ -38,12 +38,31 @@ type MediaCardProps = {
     description?: string;
     mediaType?: string;
     isActive?: boolean;
+    width?: number | undefined;
+    height?: number | undefined;
+    fileSize?: number | undefined;
   };
   onDownload?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
   onViewOnIPFS?: () => void;
 };
+
+// Utility function to format file size
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return "";
+
+  const units = ["B", "KB", "MB", "GB"];
+  let size = bytes;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+}
 
 export function MediaCard({
   media,
@@ -128,6 +147,8 @@ export function MediaCard({
                 <Image
                   src={media.url}
                   alt={media.label || "Media"}
+                  // width={media.width}
+                  // height={media.height}
                   fill
                   className="object-cover"
                   onError={() => setImageError(true)}
@@ -228,15 +249,27 @@ export function MediaCard({
             </Tooltip>
           )}
 
-          <div className="flex items-center space-x-2">
-            <Badge variant="secondary" className="text-xs">
-              {isVideoFile ? "Video" : "Image"}
-            </Badge>
-            {media.isActive === false && (
-              <Badge variant="destructive" className="text-xs">
-                Inactive
+          <div className="flex justify-between flex-col gap-3">
+            <div className="flex items-center space-x-2">
+              <Badge variant="secondary" className="text-xs">
+                {isVideoFile ? "Video" : "Image"}
               </Badge>
-            )}
+              {media.isActive === false && (
+                <Badge variant="destructive" className="text-xs">
+                  Inactive
+                </Badge>
+              )}
+            </div>
+
+            {/* Display dimensions and file size if available */}
+            <div className="text-xs text-gray-500 space-y-1">
+              {media.width && media.height && (
+                <div>
+                  {media.width} × {media.height}
+                </div>
+              )}
+              {media.fileSize && <div>{formatFileSize(media.fileSize)}</div>}
+            </div>
           </div>
         </div>
       </CardContent>

@@ -51,6 +51,9 @@ export type NestedGroup = {
     description: string;
     mediaType: string;
     isActive: boolean;
+    width: number | null;
+    height: number | null;
+    fileSize: number | null;
   }>;
 };
 
@@ -80,7 +83,7 @@ export const groupsRouter = router({
         gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path,
         COALESCE(
           json_agg(
-            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type, 'isActive', i.is_active)
+            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type, 'isActive', i.is_active, 'width', i.width, 'height', i.height, 'fileSize', i.file_size)
           ) FILTER (WHERE i.id IS NOT NULL),
           '[]'::json
         ) as media
@@ -119,7 +122,7 @@ export const groupsRouter = router({
         gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path,
         COALESCE(
           json_agg(
-            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type, 'isActive', i.is_active)
+            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type, 'isActive', i.is_active, 'width', i.width, 'height', i.height, 'fileSize', i.file_size)
           ) FILTER (WHERE i.id IS NOT NULL),
           '[]'::json
         ) as media
@@ -158,7 +161,7 @@ export const groupsRouter = router({
         gh.id, gh.name, gh.slug, gh.parent_id, gh.level, gh.path,
         COALESCE(
           json_agg(
-            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type, 'isActive', i.is_active)
+            json_build_object('id', i.id, 'label', i.label, 'url', i.url, 'description', i.description, 'mediaType', i.media_type, 'isActive', i.is_active, 'width', i.width, 'height', i.height, 'fileSize', i.file_size)
           ) FILTER (WHERE i.id IS NOT NULL),
           '[]'::json
         ) as media

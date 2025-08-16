@@ -10,6 +10,9 @@ export const insertMediaSchema = createInsertSchema(media, {
   label: z.string(),
   description: z.string().optional(),
   mediaType: z.enum(["image", "video"]).default("image"),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  fileSize: z.number().int().positive().optional(),
   isActive: z.boolean().default(true),
 }).omit({
   createdAt: true,
@@ -23,5 +26,8 @@ export const updateMediaSchema = z.object({
   description: z.string().min(1).optional(),
   url: z.string().url().optional(),
   mediaType: z.enum(["image", "video"]).optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  fileSize: z.number().int().positive().optional(),
   isActive: z.boolean().optional(),
 });
