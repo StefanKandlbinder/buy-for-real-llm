@@ -166,7 +166,12 @@ export function GroupNode({
           {group.media?.map((media) => (
             <MediaCard
               key={media.id}
-              media={media}
+              media={{
+                ...media,
+                width: media.width ?? undefined,
+                height: media.height ?? undefined,
+                fileSize: media.fileSize ?? undefined,
+              }}
               onDelete={() => handleDeleteMedia(media.id)}
             />
           ))}
