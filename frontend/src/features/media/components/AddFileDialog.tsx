@@ -56,7 +56,7 @@ export function AddFileDialog({
     null
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { uploadFile, uploading, error, reset, validateFile, maxFileSizeKB } =
+  const { uploadFile, uploading, error, reset, validateFile, maxFileSizeMB } =
     useUploadFile();
 
   const form = useForm<z.infer<typeof addFileSchema>>({
@@ -126,7 +126,7 @@ export function AddFileDialog({
         <DialogHeader>
           <DialogTitle>Upload File</DialogTitle>
           <DialogDescription>
-            Select an image or video file (max {maxFileSizeKB}MB) and optionally
+            Select an image or video file (max {maxFileSizeMB}MB) and optionally
             provide a label and description.
           </DialogDescription>
         </DialogHeader>

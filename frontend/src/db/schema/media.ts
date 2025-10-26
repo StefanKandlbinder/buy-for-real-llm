@@ -23,6 +23,8 @@ export const media = pgTable("media", {
   url: text("url").notNull(),
   description: varchar({ length: 255 }),
   mediaType: varchar("media_type", { length: 20 }).notNull().default("image"), // "image" or "video"
+  thumbnailId: varchar("thumbnail_id", { length: 128 }), // IPFS ID of video thumbnail
+  thumbnailUrl: text("thumbnail_url"), // Full gateway URL of video thumbnail
   width: integer("width"), // Width in pixels
   height: integer("height"), // Height in pixels
   fileSize: integer("file_size"), // File size in bytes

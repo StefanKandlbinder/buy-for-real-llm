@@ -86,15 +86,91 @@ To get a local copy up and running, follow these simple steps.
 
 ## API Usage
 
-The object detection API is available at the `/objectdetection` endpoint. You can send a POST request with an image to get the detected objects.
+The object detection API provides two endpoints for detecting objects in images:
 
-Example using `curl`:
+### File Upload Endpoint: `/objectdetection`
+
+Send a POST request with an image file:
 
 ```sh
 curl -X POST -F "file=@/path/to/your/image.jpg" http://localhost:8000/objectdetection
 ```
 
-The response will be a JSON object containing the detected items and their bounding boxes.
+Optional parameters:
+
+- `prompt`: Custom detection prompt (default: "detect all the objects like sunglasses, shirts, trousers or watches in the image")
+- `max_tokens`: Maximum tokens for response (default: 512)
+- `temperature`: Sampling temperature (default: 0.1)
+
+### Base64 Endpoint: `/objectdetection/base64`
+
+Send a POST request with a JSON payload containing a base64 encoded image:
+
+```sh
+curl -X POST http://localhost:8000/objectdetection/base64 \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"image_base64\": \"$(cat jupyter/resized_image.b64)\",
+    \"prompt\": \"detect all objects in the image\",
+    \"max_tokens\": 1024,
+    \"temperature\": 0.1
+  }"
+
+```
+
+The `image_base64` field supports:
+
+- Raw base64 strings: `iVBORw0KGgoAAAANSUhEUgAA...`
+- Data URI format: `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...`
+
+Both endpoints return a JSON response with detected objects and their bounding boxes:
+
+```json
+{
+  "success": true,
+  "objects": [
+    {
+      "object": "object_name",
+      "bbox_2d": [xmin, ymin, xmax, ymax]
+    }
+  ],
+  "response_text": "..."
+}
+```
+
+## LM Studio API Usage
+
+```sh
+curl http://localhost:1234/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"model\": \"qwen/qwen3-vl-8b\",
+    \"messages\": [
+      {
+        \"role\": \"system\",
+        \"content\": \"You are a helpful assistant to detect objects in images. Follow the user's specific instructions for what objects to detect. Return a JSON array of objects, each with 'label' and 'bbox_2d' (normalized coordinates: [x_min, y_min, x_max, y_max], values from 0 to 1). Be as precise as possible. If you are not sure about the object or its position return nothing.\n\nResponse format:\n[{\n  \\\"object\\\": \\\"object_name\\\",\n  \\\"bbox_2d\\\": [xmin, ymin, xmax, ymax]\n}, ...]\"
+      },
+      {
+        \"role\": \"user\",
+        \"content\": [
+          {
+            \"type\": \"image_url\",
+            \"image_url\": {
+              \"url\": \"$(cat jupyter/resized_image.b64)\"
+            }
+          },
+          {
+            \"type\": \"text\",
+            \"text\": \"detect all the objects in the image, return normalized bounding boxes in the range of 0 and 1.\"
+          }
+        ]
+      }
+    ],
+    \"temperature\": 0.7,
+    \"max_tokens\": -1,
+    \"stream\": false
+  }"
+```
 
 ## Project Structure
 

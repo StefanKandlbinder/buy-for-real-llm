@@ -1,6 +1,6 @@
 {
-  "id": "d66f9700-8194-42da-83ff-be31bc3c4d3f",
-  "prevId": "71c85a79-2c59-4996-b7c0-4f7effdecf60",
+  "id": "0bfa76b0-d24c-43cd-91e6-a12d9d900f94",
+  "prevId": "95ca5a92-f7af-4d8f-b2b0-2277c7b6c0a7",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -45,6 +45,18 @@
           "notNull": true,
           "default": "'image'"
         },
+        "thumbnail_id": {
+          "name": "thumbnail_id",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "thumbnail_url": {
+          "name": "thumbnail_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "width": {
           "name": "width",
           "type": "integer",
@@ -53,6 +65,12 @@
         },
         "height": {
           "name": "height",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_size": {
+          "name": "file_size",
           "type": "integer",
           "primaryKey": false,
           "notNull": false

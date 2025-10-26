@@ -1,6 +1,6 @@
 {
-  "id": "8c6604d8-5783-4154-8bcc-077e9ecdd39a",
-  "prevId": "d66f9700-8194-42da-83ff-be31bc3c4d3f",
+  "id": "95ca5a92-f7af-4d8f-b2b0-2277c7b6c0a7",
+  "prevId": "71c85a79-2c59-4996-b7c0-4f7effdecf60",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -44,6 +44,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'image'"
+        },
+        "thumbnail_id": {
+          "name": "thumbnail_id",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": false
         },
         "width": {
           "name": "width",
@@ -91,12 +97,8 @@
           "name": "media_group_id_groups_id_fk",
           "tableFrom": "media",
           "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -156,12 +158,8 @@
           "name": "groups_parent_id_groups_id_fk",
           "tableFrom": "groups",
           "tableTo": "groups",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["parent_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -171,9 +169,7 @@
         "groups_slug_unique": {
           "name": "groups_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -224,12 +220,8 @@
           "name": "products_group_id_groups_id_fk",
           "tableFrom": "products",
           "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -284,12 +276,8 @@
           "name": "advertisements_group_id_groups_id_fk",
           "tableFrom": "advertisements",
           "tableTo": "groups",
-          "columnsFrom": [
-            "group_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["group_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

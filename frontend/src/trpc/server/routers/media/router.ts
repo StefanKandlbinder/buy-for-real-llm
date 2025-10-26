@@ -73,7 +73,7 @@ export const mediaRouter = router({
   deleteImage: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      // First, get the media record to get the Pinata ID
+      // First, get the media record to get the Pinata ID and thumbnail ID
       const [mediaRecord] = await ctx.db
         .select()
         .from(media)
@@ -83,9 +83,15 @@ export const mediaRouter = router({
         throw new Error("Media not found");
       }
 
+      // Collect all files to delete from Pinata
+      const filesToDelete = [input.id];
+      if (mediaRecord.thumbnailId) {
+        filesToDelete.push(mediaRecord.thumbnailId);
+      }
+
       // Delete from Pinata first
       try {
-        const pinataResult = await pinata.files.public.delete([input.id]);
+        const pinataResult = await pinata.files.public.delete(filesToDelete);
         if (Array.isArray(pinataResult)) {
           const failed = pinataResult.filter((res) => res.status !== "OK");
           if (failed.length > 0) {

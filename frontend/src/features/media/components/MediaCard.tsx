@@ -21,6 +21,7 @@ import {
   Play,
   ToggleLeft,
   ToggleRight,
+  Eye,
 } from "lucide-react";
 import {
   Tooltip,
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useConfirm } from "@/shared/components/ConfirmDialog";
 import { useMedia } from "@/features/media/hooks/useMedia";
+import { PreviewDialog } from "@/features/media/components/PreviewDialog";
 
 type MediaCardProps = {
   media: {
@@ -41,6 +43,8 @@ type MediaCardProps = {
     width?: number | undefined;
     height?: number | undefined;
     fileSize?: number | undefined;
+    thumbnailId?: string; // IPFS ID of video thumbnail
+    thumbnailUrl?: string; // Gateway URL of video thumbnail
   };
   onDownload?: () => void;
   onEdit?: () => void;
@@ -73,6 +77,7 @@ export function MediaCard({
 }: MediaCardProps) {
   const [imageError, setImageError] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const confirm = useConfirm();
   const { updateMutation } = useMedia();
 
@@ -92,6 +97,7 @@ export function MediaCard({
       const link = document.createElement("a");
       link.href = media.url;
       link.download = media.label || "download";
+      link.rel = "noopener noreferrer";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -120,26 +126,49 @@ export function MediaCard({
     <Card className="group hover:shadow-lg transition-shadow">
       <CardContent>
         {/* Media Preview */}
-        <div className="aspect-square relative mb-3 rounded-lg overflow-hidden bg-gray-100">
+        <div
+          className="aspect-square relative mb-3 rounded-lg overflow-hidden bg-gray-100 cursor-pointer hover:opacity-90 transition-opacity"
+          onClick={() => setPreviewOpen(true)}
+          role="button"
+          tabIndex={0}
+          aria-label="Open media preview"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setPreviewOpen(true);
+            }
+          }}
+        >
           {isVideoFile ? (
-            // Video display
-            <div className="w-full h-full relative">
-              {!videoError ? (
-                <video
-                  src={media.url}
-                  className="w-full h-full object-cover rounded-lg"
-                  controls
-                  onError={() => setVideoError(true)}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <Play className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-500">Video not available</p>
+            // Video display - show thumbnail if available
+            media.thumbnailId ? (
+              // Display thumbnail image
+              <>
+                {!imageError ? (
+                  <Image
+                    src={media.thumbnailUrl || ""}
+                    alt={`${media.label || "Media"} thumbnail`}
+                    fill
+                    className="object-cover"
+                    onError={() => setImageError(true)}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <Play className="h-12 w-12 text-gray-400" />
                   </div>
+                )}
+                {/* Play button overlay */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
+                  <Play className="h-12 w-12 text-white" />
                 </div>
-              )}
-            </div>
+              </>
+            ) : (
+              // Fallback: show play icon
+              <div className="w-full h-full relative flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/20" />
+                <Play className="h-12 w-12 text-white z-10" />
+              </div>
+            )
           ) : (
             // Image display
             <>
@@ -147,8 +176,6 @@ export function MediaCard({
                 <Image
                   src={media.url}
                   alt={media.label || "Media"}
-                  // width={media.width}
-                  // height={media.height}
                   fill
                   className="object-cover"
                   onError={() => setImageError(true)}
@@ -188,6 +215,10 @@ export function MediaCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setPreviewOpen(true)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Preview
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownload}>
                   <Download className="h-4 w-4 mr-2" />
                   Download
@@ -273,6 +304,20 @@ export function MediaCard({
           </div>
         </div>
       </CardContent>
+
+      {/* Preview Dialog */}
+      <PreviewDialog
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        media={media}
+        isVideoFile={isVideoFile}
+        imageError={imageError}
+        videoError={videoError}
+        onImageError={() => setImageError(true)}
+        onVideoError={() => setVideoError(true)}
+        onDownload={handleDownload}
+        onViewOnIPFS={handleViewOnIPFS}
+      />
     </Card>
   );
 }
