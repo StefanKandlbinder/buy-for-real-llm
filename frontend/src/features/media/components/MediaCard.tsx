@@ -28,6 +28,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatFileSize } from "@/lib/formatting";
 import { useConfirm } from "@/shared/components/ConfirmDialog";
 import { useMedia } from "@/features/media/hooks/useMedia";
 import { PreviewDialog } from "@/features/media/components/PreviewDialog";
@@ -51,22 +52,6 @@ type MediaCardProps = {
   onDelete?: () => void;
   onViewOnIPFS?: () => void;
 };
-
-// Utility function to format file size
-function formatFileSize(bytes?: number): string {
-  if (!bytes) return "";
-
-  const units = ["B", "KB", "MB", "GB"];
-  let size = bytes;
-  let unitIndex = 0;
-
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex++;
-  }
-
-  return `${size.toFixed(1)} ${units[unitIndex]}`;
-}
 
 export function MediaCard({
   media,
@@ -149,6 +134,7 @@ export function MediaCard({
                     src={media.thumbnailUrl || ""}
                     alt={`${media.label || "Media"} thumbnail`}
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover"
                     onError={() => setImageError(true)}
                   />
@@ -159,7 +145,7 @@ export function MediaCard({
                 )}
                 {/* Play button overlay */}
                 <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
-                  <Play className="h-12 w-12 text-white" />
+                  <Play className="h-6 w-6 text-white opacity-40" />
                 </div>
               </>
             ) : (
@@ -177,6 +163,7 @@ export function MediaCard({
                   src={media.url}
                   alt={media.label || "Media"}
                   fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className="object-cover"
                   onError={() => setImageError(true)}
                 />
@@ -293,7 +280,7 @@ export function MediaCard({
             </div>
 
             {/* Display dimensions and file size if available */}
-            <div className="text-xs text-gray-500 space-y-1">
+            <div className="text-xs  space-y-1">
               {media.width && media.height && (
                 <div>
                   {media.width} × {media.height}
